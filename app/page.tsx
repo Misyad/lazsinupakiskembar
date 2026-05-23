@@ -4,7 +4,6 @@ import {
   Bell,
   Boxes,
   CheckCircle2,
-  ChevronRight,
   ClipboardList,
   Coins,
   Download,
@@ -23,7 +22,7 @@ import {
   X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Role =
   | "Super Admin"
@@ -71,7 +70,9 @@ type DashboardStats = {
   balance: number;
 };
 
-const accounts: Array<{ role: Role; name: string; email: string }> = [
+type Account = { role: Role; name: string; email: string };
+
+const accounts: Account[] = [
   { role: "Super Admin", name: "Admin Pusat", email: "superadmin@koinnu.local" },
   { role: "Admin Ranting", name: "Admin Ranting", email: "admin@ranting.local" },
   { role: "Petugas Lapangan", name: "Petugas A", email: "petugas@ranting.local" },
@@ -191,8 +192,13 @@ const currency = new Intl.NumberFormat("id-ID", {
 });
 
 export default function HomePage() {
-  const [account, setAccount] = useState(accounts[1]);
+  const [account, setAccount] = useState<Account>(accounts[1]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [loginEmail, setLoginEmail] = useState("admin@ranting.local");
+  const [loginPassword, setLoginPassword] = useState("Admin123!");
   const [activePage, setActivePage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [houses, setHouses] = useState(initialHouses);
@@ -206,6 +212,63 @@ export default function HomePage() {
   const [withdrawalNotes, setWithdrawalNotes] = useState("");
 
   const availableNav = navigation.filter((item) => item.roles.includes(account.role));
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (active && payload.user) {
+          setAccount(payload.user);
+          setIsLoggedIn(true);
+        }
+      } finally {
+        if (active) setAuthLoading(false);
+      }
+    }
+
+    loadSession();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function login(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginError("");
+    setLoginLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setLoginError(payload.error ?? "Login gagal.");
+        return;
+      }
+
+      setAccount(payload.user);
+      setIsLoggedIn(true);
+      setActivePage("dashboard");
+    } catch {
+      setLoginError("Tidak bisa menghubungi server login.");
+    } finally {
+      setLoginLoading(false);
+    }
+  }
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setIsLoggedIn(false);
+    setActivePage("dashboard");
+  }
 
   const stats = useMemo(() => {
     const validated = withdrawals.filter((item) => item.status === "Validated");
@@ -277,6 +340,16 @@ export default function HomePage() {
     );
   }
 
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-paper p-4">
+        <div className="rounded-[8px] border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-600 shadow-soft">
+          Memeriksa sesi...
+        </div>
+      </main>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <main className="flex min-h-screen items-center justify-center p-4">
@@ -306,34 +379,48 @@ export default function HomePage() {
             <div className="p-5 sm:p-8">
               <div className="mb-6">
                 <p className="text-sm font-medium text-brand-700">Masuk aplikasi</p>
-                <h2 className="mt-2 text-2xl font-semibold text-ink">Pilih akun demo</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-ink">Login pengguna</h2>
               </div>
-              <div className="grid gap-3">
-                {accounts.map((item) => (
-                  <button
-                    key={item.role}
-                    className={`flex items-center justify-between rounded-[8px] border p-4 text-left transition ${
-                      account.role === item.role
-                        ? "border-brand-500 bg-brand-50"
-                        : "border-slate-200 bg-white hover:border-brand-100"
-                    }`}
-                    onClick={() => setAccount(item)}
-                  >
-                    <span>
-                      <span className="block font-semibold text-ink">{item.name}</span>
-                      <span className="mt-1 block text-sm text-slate-500">{item.role}</span>
-                    </span>
-                    <ChevronRight size={18} className="text-brand-600" />
-                  </button>
-                ))}
+              <form className="grid gap-4" onSubmit={login}>
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  Email
+                  <input
+                    className="h-11 rounded-[8px] border border-slate-200 px-3 font-normal outline-none transition focus:border-brand-500"
+                    type="email"
+                    value={loginEmail}
+                    onChange={(event) => setLoginEmail(event.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  Password
+                  <input
+                    className="h-11 rounded-[8px] border border-slate-200 px-3 font-normal outline-none transition focus:border-brand-500"
+                    type="password"
+                    value={loginPassword}
+                    onChange={(event) => setLoginPassword(event.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                </label>
+                {loginError ? (
+                  <div className="rounded-[8px] border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                    {loginError}
+                  </div>
+                ) : null}
+                <button
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-brand-600 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  disabled={loginLoading}
+                >
+                  <ShieldCheck size={18} />
+                  {loginLoading ? "Memproses..." : "Masuk"}
+                </button>
+              </form>
+              <div className="mt-6 rounded-[8px] border border-slate-200 bg-paper p-4 text-sm text-slate-600">
+                <p className="font-semibold text-ink">Akun awal</p>
+                <p className="mt-2">admin@ranting.local / Admin123!</p>
               </div>
-              <button
-                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-brand-600 font-semibold text-white transition hover:bg-brand-700"
-                onClick={() => setIsLoggedIn(true)}
-              >
-                <ShieldCheck size={18} />
-                Masuk sebagai {account.role}
-              </button>
             </div>
           </div>
         </section>
@@ -388,7 +475,7 @@ export default function HomePage() {
           <p className="mt-1 text-xs text-slate-500">{account.role}</p>
           <button
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
-            onClick={() => setIsLoggedIn(false)}
+            onClick={logout}
           >
             <LogOut size={16} />
             Keluar
