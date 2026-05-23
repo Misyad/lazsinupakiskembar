@@ -1,4 +1,5 @@
 node_modules
 .next
 .codex-ssh-runner
+.env
 .env*.local
