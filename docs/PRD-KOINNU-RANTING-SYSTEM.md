@@ -1,236 +1,374 @@
 # PRD KOINNU Ranting System
 
-## 1. Ringkasan Produk
+## 1. Status Dokumen
 
 **Nama produk:** KOINNU Ranting System  
-**Jenis produk:** Web-based management system  
-**Pemilik proses:** Pengurus Ranting LAZISNU  
-**Tujuan utama:** digitalisasi pengelolaan GERAKAN KOIN NU dari distribusi kaleng, pendataan rumah donatur, penarikan koin, rekap keuangan, laporan transparansi, sampai monitoring petugas lapangan.
+**Organisasi:** LAZISNU Pakiskembar  
+**Jenis produk:** Web application operasional ranting  
+**Status dokumen:** Pedoman utama proyek  
+**Bahasa produk:** Indonesia  
+**Target pengguna awal:** Pengurus ranting, bendahara, petugas lapangan, dan publik  
+**Status implementasi saat ini:** MVP dummy-data berbasis Next.js single-page app  
+**Target implementasi berikutnya:** Fullstack production-ready dengan database, autentikasi, RBAC, audit log, dan deployment Jenkins
 
-KOINNU Ranting System dirancang sebagai sistem terpusat untuk membantu ranting LAZISNU mengelola dana umat secara rapi, transparan, mudah diaudit, dan mudah digunakan oleh petugas lapangan maupun pengurus.
+Dokumen ini menjadi acuan utama untuk keputusan produk, desain fitur, struktur data, prioritas pengembangan, dan validasi hasil kerja. Jika ada perubahan scope, perubahan tersebut harus memperbarui PRD ini terlebih dahulu atau dicatat sebagai keputusan teknis yang merujuk ke PRD ini.
 
-## 2. Latar Belakang
+## 2. Ringkasan Produk
 
-Program GERAKAN KOIN NU sering menghadapi kendala operasional berikut:
+KOINNU Ranting System adalah sistem digital untuk mengelola GERAKAN KOIN NU di tingkat ranting. Sistem ini mendukung pendataan rumah donatur, distribusi kaleng, penarikan koin, validasi bendahara, rekap keuangan, laporan periodik, transparansi publik, dan monitoring petugas lapangan.
 
-- Data rumah donatur tidak rapi.
-- Kaleng KOIN NU tidak terdata dengan baik.
-- Rekap penarikan masih manual.
-- Laporan terlambat dan sulit diverifikasi.
-- Transparansi kepada masyarakat belum real-time.
-- Audit internal sulit dilakukan karena jejak transaksi kurang lengkap.
+Produk ini dibuat agar pengelolaan dana umat lebih rapi, transparan, mudah diaudit, dan tidak bergantung pada catatan manual yang rawan hilang, terlambat, atau tidak konsisten.
 
-Sistem digital dibutuhkan agar ranting dapat bekerja lebih profesional, mengurangi risiko manipulasi data, mempercepat laporan, dan meningkatkan kepercayaan masyarakat.
+## 3. Masalah yang Diselesaikan
 
-## 3. Tujuan Bisnis dan KPI
+Pengelolaan KOIN NU di ranting umumnya menghadapi masalah berikut:
 
-### Tujuan Bisnis
+- Data rumah donatur tersebar di buku, chat, atau spreadsheet pribadi.
+- Nomor kaleng tidak selalu unik dan riwayat distribusi sulit dilacak.
+- Penarikan koin dicatat manual dan rawan salah rekap.
+- Bendahara sulit membedakan transaksi pending, sah, dan ditolak.
+- Laporan bulanan membutuhkan waktu lama.
+- Transparansi ke masyarakat belum tersaji cepat.
+- Audit internal sulit karena tidak ada jejak perubahan data.
+- Petugas lapangan tidak punya alur input yang sederhana saat bertugas.
 
-- Digitalisasi administrasi LAZISNU ranting.
-- Meningkatkan transparansi dana umat.
-- Mengurangi pekerjaan rekap manual.
-- Mempermudah audit dan pertanggungjawaban.
-- Meningkatkan kepercayaan masyarakat kepada gerakan sedekah KOIN NU.
+Sistem ini harus menyelesaikan masalah tersebut dengan alur kerja yang jelas, data terpusat, permission yang tegas, dan laporan yang siap dipakai pengurus.
 
-### KPI Utama
+## 4. Tujuan Produk
 
-| KPI | Target |
-| --- | --- |
-| Rumah aktif | 1000+ |
-| Akurasi data | 95% |
-| Laporan otomatis | 100% |
-| Penarikan tepat waktu | 90% |
-| Transparansi publik | Real-time |
+### 4.1 Tujuan Bisnis
 
-## 4. Scope Produk
+- Digitalisasi administrasi LAZISNU Pakiskembar.
+- Meningkatkan kepercayaan masyarakat terhadap pengelolaan dana KOIN NU.
+- Mengurangi pekerjaan rekap manual pengurus dan bendahara.
+- Mempercepat proses validasi penarikan dan penyusunan laporan.
+- Menyiapkan data yang rapi untuk audit internal dan pertanggungjawaban publik.
 
-### In Scope
+### 4.2 Tujuan Pengguna
 
+- Admin ranting dapat mengelola rumah, kaleng, petugas, dan laporan dari satu sistem.
+- Petugas lapangan dapat input penarikan secara cepat melalui scan QR atau pencarian kaleng.
+- Bendahara dapat memvalidasi pemasukan dan mencatat pengeluaran dengan bukti yang jelas.
+- Publik dapat melihat ringkasan transparansi tanpa melihat data sensitif.
+
+### 4.3 KPI
+
+| KPI | Target MVP | Target Produksi |
+| --- | ---: | ---: |
+| Data rumah terdigitalisasi | 100 rumah | 1000+ rumah |
+| Kaleng memiliki nomor unik | 100% | 100% |
+| Penarikan masuk sistem | 80% | 95% |
+| Transaksi tervalidasi bendahara | 90% | 98% |
+| Laporan bulanan otomatis | Ada | Siap cetak PDF/Excel |
+| Audit log aksi penting | Partial | 100% aksi penting |
+| Halaman publik | Ringkasan | Real-time terkontrol |
+
+## 5. Prinsip Produk
+
+- **Data resmi adalah data tervalidasi.** Transaksi pending tidak boleh masuk saldo resmi.
+- **Backend harus menjadi sumber kebenaran.** UI boleh membantu, tetapi validasi final berada di server.
+- **Data publik dipisahkan dari data internal.** Publik tidak boleh melihat nomor HP, alamat detail, catatan internal, dan audit log.
+- **Setiap aksi penting harus bisa diaudit.** Create, update, delete, validasi, penolakan, export, dan publikasi laporan harus tercatat.
+- **Alur lapangan harus cepat.** Input penarikan harus nyaman dipakai di HP.
+- **Scope dibuat bertahap.** Jangan menambah integrasi eksternal sebelum fondasi data dan role stabil.
+
+## 6. Kondisi Implementasi Saat Ini
+
+Repo saat ini adalah MVP frontend dengan dummy data.
+
+### 6.1 Stack Saat Ini
+
+- Next.js App Router
+- React
+- TypeScript
+- Tailwind CSS
+- Lucide React icons
+- Dockerfile production
+- Docker Compose
+- Jenkinsfile untuk CI/CD
+- Cloudflare Tunnel untuk publikasi domain
+
+### 6.2 Modul Dummy yang Sudah Ada
+
+- Login simulasi berdasarkan role.
+- Dashboard statistik.
+- Data rumah donatur.
+- Tracking kaleng.
+- Input penarikan.
+- Validasi transaksi.
+- Keuangan ringkas.
+- Laporan ringkas.
+- Transparansi publik.
+- Pengaturan role dan integrasi WhatsApp placeholder.
+
+### 6.3 Batasan Saat Ini
+
+- Belum ada database.
+- Belum ada autentikasi nyata.
+- Belum ada API server.
+- Data masih tersimpan di state frontend.
+- QR belum benar-benar dibuat dan dipindai.
+- Export PDF/Excel belum tersedia.
+- Audit log belum persisten.
+- WhatsApp gateway belum terhubung.
+
+## 7. Scope Produk
+
+### 7.1 In Scope Produksi
+
+- Autentikasi pengguna.
+- Role based access control.
 - Dashboard operasional.
-- Pendataan rumah donatur.
-- Pendataan dan tracking kaleng.
-- Generate QR kaleng.
-- Input penarikan koin.
-- Validasi transaksi oleh bendahara.
-- Rekap kas masuk dan kas keluar.
-- Audit log.
-- Laporan harian, mingguan, bulanan, tahunan, per RT, dan per petugas.
+- Manajemen rumah donatur.
+- Manajemen kaleng.
+- QR kaleng.
+- Penarikan koin.
+- Validasi bendahara.
+- Keuangan kas masuk dan kas keluar.
+- Laporan periodik.
 - Export PDF dan Excel.
-- Multi user role.
-- WhatsApp notification.
-- Monitoring wilayah.
-- Halaman transparansi publik.
+- Transparansi publik.
+- Audit log.
+- Pengaturan user, role, wilayah, kategori, dan integrasi.
+- Deployment otomatis melalui Jenkins.
 
-### Out of Scope Phase Awal
+### 7.2 Out of Scope untuk Fase Awal
 
 - Mobile app native.
-- AI analytics.
-- Payment gateway kompleks.
+- Payment gateway.
 - Integrasi bank otomatis.
+- AI analytics.
+- Multi organisasi skala nasional.
+- Marketplace donasi.
+- Akuntansi kompleks setingkat ERP.
 
-## 5. Role dan Permission
+## 8. Persona dan Role
 
-| Role | Akses Utama |
-| --- | --- |
-| Super Admin | Mengelola seluruh data, setting sistem, role, permission, user, dan konfigurasi global. |
-| Admin Ranting | Mengelola rumah donatur, kaleng, petugas, laporan ranting, dan input penyaluran. |
-| Petugas Lapangan | Scan QR kaleng, melihat data rumah terkait tugas, input hasil penarikan, update status rumah. |
-| Bendahara | Validasi pemasukan, input kas keluar, rekap saldo, export laporan keuangan. |
-| Viewer Publik | Melihat ringkasan transparansi dana yang sudah dipublikasikan. |
+### 8.1 Super Admin
 
-### Prinsip Permission
+Pengelola tertinggi sistem. Biasanya pengurus inti atau teknis sistem.
 
-- Semua halaman admin wajib dilindungi authentication.
-- Semua API internal wajib memvalidasi role dan permission.
-- Viewer publik tidak boleh mengakses data personal rumah, nomor HP, catatan internal, atau audit log.
-- Aksi create, update, delete, validasi, dan export wajib tercatat di audit log.
+Kebutuhan:
 
-## 6. Modul Produk
+- Mengelola user dan role.
+- Mengelola setting global.
+- Mengakses semua data.
+- Melihat audit log.
+- Memperbaiki data bermasalah.
 
-### A. Dashboard
+### 8.2 Admin Ranting
 
-Dashboard menampilkan kondisi operasional secara ringkas dan real-time.
+Pengurus operasional ranting.
 
-Komponen utama:
+Kebutuhan:
+
+- Mengelola rumah donatur.
+- Mengelola kaleng.
+- Mengatur wilayah dan petugas.
+- Melihat laporan operasional.
+- Mempublikasikan ringkasan transparansi.
+
+### 8.3 Petugas Lapangan
+
+Petugas yang melakukan distribusi dan penarikan kaleng.
+
+Kebutuhan:
+
+- Melihat daftar rumah tugas.
+- Scan QR kaleng.
+- Input nominal penarikan.
+- Menambahkan catatan lapangan.
+- Melihat status input yang pernah dibuat.
+
+### 8.4 Bendahara
+
+Pengelola validasi dan kas.
+
+Kebutuhan:
+
+- Memvalidasi atau menolak penarikan.
+- Melihat saldo.
+- Mencatat kas keluar.
+- Export laporan keuangan.
+- Melihat rekap transaksi tervalidasi.
+
+### 8.5 Viewer Publik
+
+Masyarakat atau jamaah yang melihat transparansi.
+
+Kebutuhan:
+
+- Melihat total pemasukan.
+- Melihat total penyaluran.
+- Melihat saldo publik.
+- Melihat dokumentasi program.
+- Tidak melihat data pribadi donatur.
+
+## 9. Permission Matrix
+
+| Modul | Super Admin | Admin Ranting | Petugas | Bendahara | Publik |
+| --- | --- | --- | --- | --- | --- |
+| Dashboard internal | Full | Full | Terbatas | Full | Tidak |
+| Rumah donatur | Full | Full | Read terbatas | Read | Tidak |
+| Kaleng | Full | Full | Read dan update tugas | Read | Tidak |
+| Penarikan | Full | Read | Create | Validate | Tidak |
+| Keuangan | Full | Read/limited create | Tidak | Full | Tidak |
+| Laporan | Full | Full | Terbatas | Full | Tidak |
+| Transparansi publik | Publish | Publish | Tidak | Review | Read |
+| User dan role | Full | Tidak | Tidak | Tidak | Tidak |
+| Audit log | Full | Read terbatas | Tidak | Read keuangan | Tidak |
+
+Aturan permission harus diterapkan di UI dan server. UI tidak boleh menjadi satu-satunya pembatas akses.
+
+## 10. Modul dan Requirement
+
+### 10.1 Dashboard
+
+Dashboard menampilkan kondisi operasional harian.
+
+Data utama:
 
 - Total rumah aktif.
 - Total kaleng aktif.
-- Total pemasukan bulan ini.
-- Grafik pemasukan.
-- Wilayah terbaik.
+- Total pemasukan bulan berjalan.
+- Total transaksi pending.
+- Saldo kas.
+- Wilayah dengan kontribusi tertinggi.
 - Petugas aktif.
-- Penarikan menunggu validasi.
-- Saldo kas terkini.
+- Tren pemasukan.
 
 Acceptance criteria:
 
-- Data dashboard diperbarui kurang dari 5 detik setelah transaksi penting tersimpan.
-- Tampilan responsive pada desktop dan mobile.
-- Statistik mengikuti permission role pengguna.
-- Data publik dan data internal dipisahkan.
+- Statistik hanya menghitung transaksi tervalidasi untuk angka resmi.
+- Petugas hanya melihat ringkasan sesuai tugasnya.
+- Dashboard mobile tetap dapat dibaca tanpa horizontal scroll.
+- Data dashboard diambil dari server, bukan dihitung hanya di client.
 
-### B. Manajemen Rumah Donatur
+### 10.2 Rumah Donatur
 
-Modul ini digunakan untuk mendata rumah penerima kaleng.
+Modul rumah digunakan untuk mendata keluarga atau titik donatur.
 
 Field utama:
 
-| Field | Tipe | Keterangan |
-| --- | --- | --- |
-| ID Rumah | Auto | ID internal sistem. |
-| Nama Kepala Keluarga | Text | Nama penanggung jawab rumah. |
-| Nomor HP | Text | Nomor kontak keluarga. |
-| Alamat | Text | Alamat lengkap. |
-| RT/RW | Text | Wilayah administrasi kecil. |
-| Desa | Text | Desa atau dusun. |
-| Status Aktif | Boolean | Aktif atau nonaktif. |
-| Tanggal Bergabung | Date | Tanggal mulai menjadi donatur. |
-| Nomor Kaleng | Relation | Relasi ke kaleng aktif. |
+| Field | Keterangan |
+| --- | --- |
+| ID rumah | ID internal |
+| Nama kepala keluarga | Nama penanggung jawab |
+| Nomor HP | Kontak aktif, opsional jika belum ada |
+| Alamat | Alamat detail internal |
+| RT/RW | Wilayah kecil |
+| Dusun/Desa | Wilayah administratif |
+| Status | Active, Inactive |
+| Tanggal bergabung | Tanggal mulai ikut program |
+| Catatan internal | Tidak tampil publik |
 
 Fitur:
 
-- Tambah, edit, dan hapus data rumah.
-- Search nama, nomor HP, alamat, dan nomor kaleng.
-- Filter RT/RW, desa, dan status aktif.
-- Import Excel.
-- Riwayat distribusi kaleng.
+- Tambah rumah.
+- Edit rumah.
+- Nonaktifkan rumah.
+- Search nama, HP, alamat, dan nomor kaleng.
+- Filter RT/RW dan status.
+- Import data dari Excel.
+- Riwayat rumah dan kaleng.
 
 Acceptance criteria:
 
-- Satu rumah dapat memiliki maksimal satu kaleng aktif pada satu waktu.
-- Data nomor HP divalidasi formatnya.
-- Import Excel menampilkan hasil sukses dan gagal.
-- Perubahan status rumah tercatat di audit log.
+- Nomor HP divalidasi format Indonesia.
+- Rumah nonaktif tidak boleh menerima penarikan baru.
+- Perubahan data rumah tercatat di audit log.
+- Penghapusan data produksi sebaiknya soft delete.
 
-### C. Manajemen Kaleng
+### 10.3 Kaleng
 
-Modul ini digunakan untuk tracking kaleng KOIN NU.
+Modul kaleng mengatur inventaris dan distribusi kaleng KOIN NU.
 
-Format nomor kaleng:
+Format nomor awal:
 
 ```text
 KNU-RT01-001
 ```
 
-Field utama:
+Status kaleng:
 
-| Field | Tipe | Keterangan |
-| --- | --- | --- |
-| Nomor Kaleng | String | Nomor unik kaleng. |
-| Status | Enum | Active, Lost, Damaged, Inactive. |
-| Rumah Pemilik | Relation | Rumah yang sedang memegang kaleng. |
-| Tanggal Distribusi | Date | Tanggal kaleng diberikan. |
-| QR Code | Generated | QR berisi identifier kaleng. |
+- Active
+- Inactive
+- Lost
+- Damaged
 
 Fitur:
 
 - Generate nomor kaleng.
+- Assign kaleng ke rumah.
+- Pindah kaleng antar rumah.
 - Generate QR.
-- Cetak label.
-- Tracking status kaleng.
-- Riwayat pemindahan kaleng.
+- Cetak label QR.
+- Tracking riwayat distribusi.
 
 Acceptance criteria:
 
-- Nomor kaleng unik dan tidak bisa dipakai ganda.
-- QR mengarah ke data kaleng yang valid.
-- Kaleng hilang atau rusak tidak bisa digunakan untuk penarikan aktif.
-- Semua perubahan status tercatat di audit log.
+- Nomor kaleng unik.
+- Satu kaleng hanya boleh aktif di satu rumah pada satu waktu.
+- Kaleng Lost, Damaged, atau Inactive tidak bisa dipakai untuk penarikan.
+- QR harus memuat identifier yang tidak mudah ditebak jika dipakai publik.
 
-### D. Penarikan Koin
+### 10.4 Penarikan Koin
 
-Modul ini digunakan petugas untuk input hasil pengambilan koin.
+Modul penarikan dipakai oleh petugas lapangan.
 
-Flow utama:
+Flow:
 
-1. Petugas scan QR kaleng.
-2. Sistem menampilkan data rumah dan kaleng.
-3. Petugas input nominal dan catatan.
-4. Sistem menyimpan transaksi sebagai pending validation.
-5. Bendahara memvalidasi transaksi.
-6. Transaksi valid masuk ke dashboard dan laporan keuangan resmi.
+1. Petugas scan QR atau mencari nomor kaleng.
+2. Sistem menampilkan rumah terkait.
+3. Petugas mengisi nominal, tanggal, dan catatan.
+4. Sistem menyimpan transaksi sebagai Pending.
+5. Bendahara memvalidasi atau menolak.
+6. Transaksi Validated masuk ke saldo dan laporan resmi.
 
-Field utama:
+Status transaksi:
 
-| Field | Tipe | Keterangan |
-| --- | --- | --- |
-| ID Transaksi | Auto | ID internal transaksi. |
-| Nomor Kaleng | Relation | Kaleng yang ditarik. |
-| Jumlah | Currency | Nominal hasil penarikan. |
-| Petugas | Relation | User petugas lapangan. |
-| Tanggal | DateTime | Waktu input penarikan. |
-| Catatan | Text | Catatan tambahan. |
-| Status Validasi | Enum | Pending, Validated, Rejected. |
+- Pending
+- Validated
+- Rejected
+- Voided
 
 Acceptance criteria:
 
 - Nominal wajib lebih dari 0.
-- Petugas hanya bisa input penarikan untuk kaleng aktif.
-- Transaksi pending belum menambah saldo resmi.
-- Bendahara dapat menerima atau menolak transaksi dengan catatan.
-- Bukti transaksi dapat dibuat setelah transaksi tersimpan.
+- Petugas tidak bisa validasi transaksinya sendiri kecuali diberi permission khusus.
+- Transaksi Pending tidak menambah saldo.
+- Transaksi Rejected wajib memiliki alasan.
+- Transaksi Validated tidak boleh diubah langsung; gunakan Void atau koreksi.
 
-### E. Keuangan
+### 10.5 Keuangan
 
-Modul keuangan mengelola kas masuk, kas keluar, saldo, validasi, dan audit.
+Modul keuangan menjadi sumber saldo resmi.
+
+Jenis transaksi:
+
+- Income: berasal dari penarikan tervalidasi atau pemasukan manual yang disetujui.
+- Expense: penyaluran, operasional, atau biaya lain.
+- Adjustment: koreksi saldo dengan approval.
 
 Fitur:
 
-- Kas masuk dari penarikan yang tervalidasi.
-- Kas keluar untuk penyaluran atau biaya operasional.
-- Saldo real-time.
-- Validasi transaksi.
-- Audit log keuangan.
-- Rekap per periode.
+- Validasi pemasukan.
+- Input kas keluar.
+- Kategori keuangan.
+- Bukti transaksi.
+- Rekap saldo.
+- Export laporan.
 
 Acceptance criteria:
 
-- Saldo hanya menghitung transaksi yang sudah tervalidasi.
-- Kas keluar wajib memiliki kategori, nominal, tanggal, dan catatan.
-- Perubahan transaksi keuangan hanya dapat dilakukan oleh role berwenang.
-- Semua aksi validasi dan perubahan kas tercatat.
+- Saldo = total income tervalidasi - total expense tervalidasi + adjustment tervalidasi.
+- Kas keluar wajib memiliki kategori, nominal, tanggal, deskripsi, dan pembuat.
+- Koreksi saldo harus tercatat di audit log.
+- File bukti tidak boleh menggagalkan penyimpanan transaksi utama jika storage eksternal bermasalah; status upload harus dicatat.
 
-### F. Laporan
+### 10.6 Laporan
+
+Laporan disiapkan untuk pengurus dan audit.
 
 Jenis laporan:
 
@@ -238,55 +376,65 @@ Jenis laporan:
 - Mingguan.
 - Bulanan.
 - Tahunan.
-- Per RT.
+- Per RT/RW.
 - Per petugas.
-- Per status rumah.
-- Per status kaleng.
+- Per rumah.
+- Per kaleng.
+- Per kategori pengeluaran.
 
 Export:
 
-- PDF.
-- Excel.
+- PDF untuk laporan resmi.
+- Excel untuk audit dan olah data.
 
 Acceptance criteria:
 
-- Laporan dapat difilter berdasarkan tanggal, RT/RW, desa, petugas, dan status.
-- Export PDF cocok untuk laporan resmi.
-- Export Excel cocok untuk audit dan olah data lanjutan.
-- Data laporan mengikuti transaksi tervalidasi.
+- Filter tanggal wajib tersedia.
+- Laporan resmi hanya memakai transaksi tervalidasi.
+- Export memiliki judul organisasi, periode, tanggal cetak, dan pembuat.
+- Data sensitif tidak masuk export publik.
 
-### G. Transparansi Publik
+### 10.7 Transparansi Publik
 
-Halaman publik menampilkan ringkasan dana tanpa membuka data sensitif.
+Halaman publik menampilkan informasi yang aman dibuka masyarakat.
 
-Konten utama:
+Konten:
 
 - Total dana terkumpul.
-- Total dana disalurkan.
+- Total dana tersalurkan.
 - Saldo publik.
-- Dokumentasi penyaluran.
-- Grafik pemasukan.
 - Ringkasan program.
+- Dokumentasi penyaluran.
+- Grafik agregat.
+
+Tidak boleh tampil:
+
+- Nomor HP donatur.
+- Alamat detail rumah.
+- Nama petugas internal jika tidak diperlukan.
+- Catatan internal.
+- Audit log.
+- Data transaksi mentah.
 
 Acceptance criteria:
 
-- Publik tidak dapat melihat nomor HP, alamat detail, catatan internal, atau identitas petugas.
-- Data publik hanya menampilkan informasi yang sudah dipublikasikan.
-- Halaman dapat dibuka tanpa login.
-- Tampilan mobile-first dan mudah dibagikan.
+- Bisa dibuka tanpa login.
+- Data berasal dari laporan yang sudah dipublikasikan.
+- Publikasi dapat ditarik kembali oleh admin.
+- Mobile-first.
 
-### H. WhatsApp Gateway
+### 10.8 WhatsApp Notification
 
-WhatsApp digunakan sebagai kanal notifikasi operasional.
+WhatsApp digunakan untuk notifikasi operasional.
 
-Fitur:
+Use case:
 
 - Reminder jadwal penarikan.
-- Broadcast laporan ringkas.
-- Notifikasi donasi atau penarikan.
-- Notifikasi validasi bendahara.
+- Notifikasi transaksi pending ke bendahara.
+- Broadcast ringkasan laporan ke pengurus.
+- Notifikasi publikasi laporan.
 
-Vendor yang dapat digunakan:
+Provider yang dapat dipakai:
 
 - Fonnte.
 - Evolution API.
@@ -294,135 +442,228 @@ Vendor yang dapat digunakan:
 
 Acceptance criteria:
 
-- Integrasi dibuat sebagai adapter agar vendor bisa diganti.
-- Nomor tujuan divalidasi sebelum pengiriman.
+- Integrasi dibuat sebagai adapter.
+- Kegagalan pengiriman WhatsApp tidak membatalkan transaksi utama.
 - Status pengiriman dicatat.
-- Kegagalan pengiriman tidak boleh menggagalkan transaksi utama.
+- Template pesan tidak hardcoded di banyak tempat.
 
-## 7. User Flow
+### 10.9 Audit Log
 
-### Flow Distribusi Kaleng
+Audit log mencatat aksi penting.
 
-```text
-Admin tambah rumah
-Admin generate nomor kaleng
-Admin cetak QR dan label
-Petugas distribusi kaleng
-Rumah menjadi aktif
-Sistem mencatat riwayat distribusi
-```
+Wajib dicatat:
 
-### Flow Penarikan
+- Login dan logout.
+- Create/update/nonaktif rumah.
+- Assign/pindah/status kaleng.
+- Input penarikan.
+- Validasi, penolakan, void transaksi.
+- Input kas keluar.
+- Export laporan.
+- Publikasi laporan.
+- Perubahan role dan permission.
 
-```text
-Petugas datang ke rumah
-Petugas scan QR kaleng
-Sistem menampilkan data rumah
-Petugas input nominal
-Transaksi tersimpan sebagai pending
-Bendahara validasi
-Transaksi masuk dashboard dan laporan
-```
+Acceptance criteria:
 
-### Flow Transparansi Publik
+- Audit log tidak bisa diedit dari UI.
+- Metadata sensitif disanitasi.
+- Audit log dapat difilter berdasarkan actor, aksi, entity, dan tanggal.
 
-```text
-Bendahara validasi pemasukan
-Admin input penyaluran
-Admin publikasi ringkasan
-Publik melihat laporan transparansi
-```
+## 11. Data Model Target
 
-## 8. Struktur Data Awal
-
-### Users
+### 11.1 Users
 
 ```sql
 id
 name
 email
+phone
 password_hash
-role
 status
+last_login_at
 created_at
 updated_at
+deleted_at
 ```
 
-### Houses
+### 11.2 Roles
 
 ```sql
 id
 name
-phone
-address
-rt_rw
-village
-status
-joined_at
+description
 created_at
 updated_at
 ```
 
-### CoinBoxes
+### 11.3 UserRoles
+
+```sql
+id
+user_id
+role_id
+created_at
+```
+
+### 11.4 Permissions
+
+```sql
+id
+key
+description
+created_at
+```
+
+### 11.5 RolePermissions
+
+```sql
+id
+role_id
+permission_id
+created_at
+```
+
+### 11.6 Areas
+
+```sql
+id
+name
+type
+parent_id
+created_at
+updated_at
+```
+
+Contoh type: village, rw, rt.
+
+### 11.7 Houses
+
+```sql
+id
+code
+head_name
+phone
+address
+area_id
+status
+joined_at
+notes
+created_by
+created_at
+updated_at
+deleted_at
+```
+
+### 11.8 CoinBoxes
 
 ```sql
 id
 box_number
-house_id
 status
-qr_code
-distributed_at
+qr_token
 created_at
 updated_at
+deleted_at
 ```
 
-### Withdrawals
+### 11.9 CoinBoxAssignments
 
 ```sql
 id
 coin_box_id
-amount
+house_id
+assigned_by
+assigned_at
+unassigned_at
+notes
+```
+
+### 11.10 Withdrawals
+
+```sql
+id
+coin_box_id
+house_id
 collector_id
+amount
 status
 notes
+collected_at
 validated_by
 validated_at
+rejected_by
+rejected_at
 rejection_reason
+voided_by
+voided_at
+void_reason
 created_at
 updated_at
 ```
 
-### CashTransactions
+### 11.11 CashTransactions
 
 ```sql
 id
 type
 source
 amount
-category
+category_id
 description
+reference_type
 reference_id
+status
 created_by
+validated_by
+validated_at
 created_at
 updated_at
 ```
 
-### PublicReports
+### 11.12 FinancialCategories
 
 ```sql
 id
-period
-total_income
-total_expense
-balance
-summary
-published_at
-created_by
+name
+type
+status
 created_at
 updated_at
 ```
 
-### AuditLogs
+### 11.13 PublicReports
+
+```sql
+id
+period_start
+period_end
+title
+summary
+total_income
+total_expense
+balance
+status
+published_by
+published_at
+created_at
+updated_at
+```
+
+### 11.14 Attachments
+
+```sql
+id
+entity_type
+entity_id
+file_name
+file_url
+mime_type
+size
+uploaded_by
+created_at
+```
+
+### 11.15 AuditLogs
 
 ```sql
 id
@@ -430,163 +671,468 @@ actor_id
 action
 entity_type
 entity_id
-metadata
+metadata_json
+ip_address
+user_agent
 created_at
 ```
 
-## 9. UI Pages
+## 12. API Target
 
-| Halaman | Fungsi |
+Endpoint final dapat berubah mengikuti framework, tetapi domain API minimal sebagai berikut.
+
+### Auth
+
+```text
+POST /api/auth/login
+POST /api/auth/logout
+GET  /api/auth/me
+```
+
+### Rumah
+
+```text
+GET    /api/houses
+POST   /api/houses
+GET    /api/houses/:id
+PATCH  /api/houses/:id
+DELETE /api/houses/:id
+POST   /api/houses/import
+```
+
+### Kaleng
+
+```text
+GET   /api/coin-boxes
+POST  /api/coin-boxes
+PATCH /api/coin-boxes/:id
+POST  /api/coin-boxes/:id/assign
+POST  /api/coin-boxes/:id/unassign
+GET   /api/coin-boxes/:id/qr
+```
+
+### Penarikan
+
+```text
+GET  /api/withdrawals
+POST /api/withdrawals
+POST /api/withdrawals/:id/validate
+POST /api/withdrawals/:id/reject
+POST /api/withdrawals/:id/void
+```
+
+### Keuangan
+
+```text
+GET  /api/finance/summary
+GET  /api/finance/transactions
+POST /api/finance/expenses
+POST /api/finance/adjustments
+```
+
+### Laporan
+
+```text
+GET /api/reports/monthly
+GET /api/reports/by-area
+GET /api/reports/by-collector
+GET /api/reports/export/pdf
+GET /api/reports/export/xlsx
+```
+
+### Publik
+
+```text
+GET /api/public/transparency
+GET /api/public/reports/:id
+```
+
+## 13. UI Information Architecture
+
+### Area Admin
+
+```text
+/login
+/dashboard
+/houses
+/coin-boxes
+/withdrawals
+/finance
+/reports
+/settings/users
+/settings/roles
+/settings/areas
+/settings/integrations
+/audit-logs
+```
+
+### Area Petugas
+
+```text
+/collector
+/collector/tasks
+/collector/scan
+/collector/withdrawals
+```
+
+### Area Publik
+
+```text
+/
+/transparansi
+/laporan/:period
+```
+
+Untuk fase MVP berikutnya, boleh tetap memakai single-page dashboard selama rute dan data model produksi belum siap. Namun setiap fitur baru harus diarahkan agar mudah dipindah ke route final.
+
+## 14. UX dan Desain
+
+### 14.1 Prinsip UX
+
+- Aplikasi operasional harus padat, jelas, dan cepat dipakai.
+- Petugas lapangan harus bisa menyelesaikan input penarikan dalam kurang dari 1 menit.
+- Tombol aksi penting harus eksplisit: Validasi, Tolak, Void, Export.
+- Status transaksi harus mudah dibedakan dengan badge.
+- Form mobile tidak boleh terlalu panjang tanpa pengelompokan.
+
+### 14.2 Tone Visual
+
+- Profesional, bersih, dan administratif.
+- Warna utama boleh mengikuti identitas NU/LAZISNU, tetapi jangan membuat satu halaman monoton.
+- Gunakan card untuk item/data berulang, bukan untuk membungkus semua section.
+- Tabel desktop harus mudah discan.
+- Mobile memakai list yang ringkas.
+
+### 14.3 Copywriting
+
+- Gunakan Bahasa Indonesia.
+- Hindari istilah teknis untuk petugas lapangan.
+- Gunakan istilah konsisten:
+  - Rumah donatur
+  - Kaleng
+  - Penarikan
+  - Validasi
+  - Kas masuk
+  - Kas keluar
+  - Transparansi
+
+## 15. Non-Functional Requirements
+
+### 15.1 Security
+
+- Password wajib di-hash.
+- Session harus httpOnly.
+- API internal wajib cek authentication.
+- API mutasi wajib cek permission.
+- Input nominal, tanggal, status, dan relasi wajib divalidasi server-side.
+- Data publik wajib disaring di server.
+- Audit log metadata tidak boleh menyimpan password, token, atau secret mentah.
+
+### 15.2 Performance
+
+- Halaman dashboard internal target load < 3 detik pada jaringan normal.
+- Query dashboard memakai agregasi server/database.
+- Sistem harus sanggup menangani minimal 5000 rumah dan 100.000 transaksi penarikan.
+- Tabel besar harus memakai pagination atau infinite loading terkontrol.
+
+### 15.3 Reliability
+
+- Deployment tidak boleh menghapus data.
+- Database harus dibackup otomatis.
+- Error integrasi WhatsApp tidak boleh menggagalkan transaksi utama.
+- Health check production wajib tersedia.
+
+### 15.4 Backup dan Restore
+
+- Backup database harian.
+- Retensi minimal 7 hari.
+- Retensi ideal 30 hari.
+- Restore harus diuji sebelum sistem dipakai produksi penuh.
+
+### 15.5 Observability
+
+- Log error server harus tersedia.
+- Build Jenkins harus mencatat commit yang dideploy.
+- Container production harus memiliki restart policy.
+- Health check minimal endpoint halaman utama atau API health.
+
+## 16. Arsitektur Target
+
+### 16.1 Prinsip
+
+- Repo tetap fullstack agar pengembangan cepat.
+- Business logic kritikal berada di server.
+- Komponen UI dipisah dari service data.
+- Integrasi eksternal dibuat modular.
+- Hindari menyimpan state bisnis hanya di client.
+
+### 16.2 Stack Target
+
+| Area | Pilihan |
 | --- | --- |
-| Login | Authentication pengguna. |
-| Dashboard | Statistik dan ringkasan operasional. |
-| Rumah | Data rumah donatur. |
-| Kaleng | Tracking kaleng dan QR. |
-| Penarikan | Input dan validasi transaksi penarikan. |
-| Keuangan | Kas masuk, kas keluar, saldo, dan audit keuangan. |
-| Laporan | Filter dan export laporan. |
-| Transparansi Publik | Ringkasan dana untuk masyarakat. |
-| Pengaturan | User, role, sistem, dan integrasi WhatsApp. |
+| Web framework | Next.js App Router |
+| Bahasa | TypeScript |
+| Styling | Tailwind CSS |
+| Database | MySQL atau PostgreSQL |
+| ORM/query | Prisma atau query layer terstruktur |
+| Auth | Credential login dengan session |
+| Export | PDF dan XLSX server-side |
+| Storage | Local volume dulu, R2/S3 saat perlu |
+| Deployment | Docker, Docker Compose, Jenkins |
+| Tunnel | Cloudflare Tunnel |
 
-## 10. Non-Functional Requirement
+Catatan database: server saat ini sudah memiliki MySQL container. Jika ingin cepat produksi di server yang ada, MySQL adalah pilihan paling praktis. PostgreSQL boleh dipakai jika ada alasan teknis kuat dan disiapkan deployment-nya.
 
-### Performance
+## 17. CI/CD dan Deployment
 
-- Initial page load maksimal 3 detik pada koneksi normal.
-- Mendukung minimal 5000 rumah donatur.
-- Query dashboard harus memakai agregasi yang efisien.
+### 17.1 Kondisi Saat Ini
 
-### Security
+Job Jenkins:
 
-- Authentication wajib untuk area admin.
-- Password disimpan dalam bentuk hash.
-- Role permission divalidasi di UI dan API.
-- HTTPS wajib pada production.
-- Audit log wajib untuk aksi penting.
+```text
+LAZISNU-PAKISKEMBAR
+```
 
-### Backup
+Repo:
 
-- Auto backup harian database.
-- Backup minimal disimpan 7 sampai 30 hari sesuai kapasitas server.
-- Restore database perlu diuji berkala.
+```text
+https://github.com/Misyad/lazsinupakiskembar.git
+```
 
-### Responsive
+Branch:
 
-- Mobile-first.
-- Form input penarikan harus nyaman dipakai petugas lapangan.
-- Dashboard tetap terbaca pada layar kecil.
+```text
+main
+```
 
-## 11. Arsitektur Teknologi
+Container:
 
-Stack awal yang dikunci:
+```text
+lazisnu-pakiskembar-app
+```
 
-- **Frontend dan backend:** Next.js App Router.
-- **Styling:** TailwindCSS.
-- **Database:** PostgreSQL.
-- **ORM:** Prisma.
-- **Authentication:** credential login dengan session atau JWT.
-- **Realtime:** polling ringan untuk MVP, Socket.IO bila kebutuhan realtime meningkat.
-- **Storage:** Cloudflare R2 atau S3-compatible storage untuk dokumentasi dan bukti.
-- **Export:** service internal untuk PDF dan Excel.
-- **Hosting:** VPS Ubuntu.
+Port:
 
-Prinsip arsitektur:
+```text
+host 3002 -> container 3000
+```
 
-- Satu repo fullstack untuk mempercepat MVP.
-- API internal tetap dipisahkan secara jelas dari UI.
-- Business rule penting berada di server.
-- Role permission tidak hanya bergantung pada frontend.
-- Integrasi eksternal seperti WhatsApp dibuat modular.
+Domain tunnel:
 
-## 12. SOP Digital
+```text
+https://lazisnupakem.projecthasan.com
+```
 
-### SOP Penarikan
+### 17.2 Pipeline Wajib
 
-- Penarikan ideal dilakukan minimal 2 petugas.
-- Petugas scan QR kaleng sebelum input nominal.
-- Foto bukti bersifat opsional pada phase awal.
-- Transaksi wajib divalidasi bendahara.
-- Selisih atau catatan khusus wajib diisi pada transaksi bermasalah.
+- Checkout.
+- Docker build.
+- Install dependency dengan `npm ci`.
+- Lint.
+- Build Next.js.
+- Deploy Docker Compose.
+- Health check.
 
-### SOP Audit
+### 17.3 Aturan Deployment
 
-- Rekap bulanan wajib dibuat.
-- Selisih wajib dicatat dan dijelaskan.
-- Export laporan disimpan oleh bendahara.
-- Audit log tidak boleh diedit manual dari UI.
+- Jangan commit `node_modules`.
+- Jangan commit `.next`.
+- Jangan commit secret.
+- Semua env production harus lewat environment file/secret server.
+- Build gagal harus menghentikan deploy.
+- Health check gagal harus dianggap deployment gagal.
 
-## 13. Roadmap
+## 18. Environment dan Konfigurasi
 
-### Phase 1: Fondasi Operasional
+### 18.1 Environment Target
 
-- Login dan role dasar.
-- Dashboard internal.
-- Pendataan rumah.
-- Pendataan kaleng.
+```text
+NODE_ENV=production
+NEXT_TELEMETRY_DISABLED=1
+PORT=3000
+```
+
+Saat sudah memakai database:
+
+```text
+DATABASE_URL=
+SESSION_SECRET=
+APP_URL=
+WHATSAPP_PROVIDER=
+WHATSAPP_API_KEY=
+```
+
+### 18.2 Secret Handling
+
+- Secret tidak boleh masuk repo.
+- Secret disimpan di Jenkins credentials, `.env` server, atau secret manager.
+- Dokumentasi boleh menyebut nama env, bukan nilai secret.
+
+## 19. Roadmap
+
+### Phase 0: MVP Dummy dan CI/CD
+
+Status: berjalan.
+
+Target:
+
+- UI dummy tersedia.
+- Docker deployment tersedia.
+- Jenkins job tersedia.
+- Domain tunnel aktif.
+- PRD menjadi pedoman.
+
+Exit criteria:
+
+- Build Jenkins sukses.
+- App bisa dibuka via domain tunnel.
+- PRD lengkap tersimpan di repo.
+
+### Phase 1: Fondasi Backend
+
+Target:
+
+- Database schema.
+- Migration.
+- Seed role awal.
+- Auth login nyata.
+- Session.
+- Protected admin area.
+- API dasar rumah, kaleng, dan penarikan.
+
+Exit criteria:
+
+- Data tidak hilang saat refresh.
+- Role login berbeda menghasilkan akses berbeda.
+- Mutasi data melewati API.
+
+### Phase 2: Operasional KOIN NU
+
+Target:
+
+- CRUD rumah produksi.
+- CRUD kaleng produksi.
+- Assign kaleng.
+- QR generation.
 - Input penarikan.
 - Validasi bendahara.
-- Rekap kas dasar.
+- Audit log dasar.
 
-### Phase 2: QR, Export, dan Notifikasi
+Exit criteria:
 
-- Generate dan scan QR.
-- Cetak label kaleng.
-- Export PDF dan Excel.
-- WhatsApp reminder dan broadcast.
-- Halaman transparansi publik.
+- Satu siklus rumah -> kaleng -> penarikan -> validasi -> saldo berjalan dari database.
 
-### Phase 3: Analitik dan Optimasi Wilayah
+### Phase 3: Keuangan dan Laporan
 
-- Analitik wilayah.
-- Ranking RT atau wilayah terbaik.
-- Monitoring performa petugas.
-- Gamifikasi RT.
-- Dashboard publik lebih lengkap.
+Target:
 
-### Phase 4: Ekspansi Platform
+- Kas masuk otomatis dari penarikan tervalidasi.
+- Kas keluar.
+- Rekap saldo.
+- Laporan periodik.
+- Export PDF/Excel.
+- Filter laporan.
 
-- Mobile app native.
-- QRIS sedekah.
-- AI prediksi donasi.
-- Integrasi bank otomatis.
-- Offline mode untuk petugas lapangan.
+Exit criteria:
 
-## 14. Risiko dan Mitigasi
+- Bendahara bisa membuat laporan bulanan siap cetak.
 
-| Risiko | Mitigasi |
-| --- | --- |
-| Data hilang | Auto backup harian dan prosedur restore. |
-| Petugas kesulitan memakai sistem | UI sederhana, mobile-first, dan form singkat. |
-| Internet lambat | Optimasi payload, cache data dasar, dan rencana offline mode. |
-| Manipulasi data | Role permission, validasi bendahara, dan audit log. |
-| Nomor kaleng ganda | Unique constraint pada nomor kaleng. |
-| Laporan tidak dipercaya | Transparansi publik dan data tervalidasi. |
+### Phase 4: Transparansi Publik
 
-## 15. Estimasi Pengembangan
+Target:
 
-| Tahap | Durasi |
-| --- | --- |
-| UI/UX | 1 minggu |
-| Backend foundation | 2 minggu |
-| Frontend implementation | 2 minggu |
-| Testing | 1 minggu |
-| Deployment | 3 hari |
+- Halaman publik dari data terpublikasi.
+- Publikasi laporan.
+- Dokumentasi program.
+- Sanitasi data sensitif.
 
-Estimasi total: sekitar 1,5 bulan untuk versi awal yang layak digunakan.
+Exit criteria:
 
-## 16. Acceptance Scenario Utama
+- Publik bisa melihat ringkasan dana tanpa akses data internal.
 
-- Admin dapat membuat data rumah, membuat nomor kaleng, dan menghubungkan kaleng ke rumah.
-- Petugas dapat scan QR kaleng dan input nominal penarikan.
-- Bendahara dapat memvalidasi atau menolak transaksi penarikan.
-- Transaksi tervalidasi otomatis memengaruhi saldo dan laporan.
-- Dashboard menampilkan statistik rumah, kaleng, pemasukan, saldo, dan performa wilayah.
-- Laporan dapat difilter dan diekspor.
-- Viewer publik hanya melihat data transparansi yang aman.
-- Setiap aksi penting tercatat di audit log.
+### Phase 5: Integrasi dan Hardening
 
-## 17. Visi Jangka Panjang
+Target:
 
-KOINNU Ranting System bukan hanya aplikasi sedekah, tetapi fondasi digital untuk pusat data sosial ranting, transparansi umat, digitalisasi NU, dan penguatan ekonomi sosial berbasis jamaah.
+- WhatsApp notification.
+- Import Excel.
+- Backup otomatis.
+- Audit log lengkap.
+- Monitoring error.
+- Optimasi mobile lapangan.
 
-Target akhirnya adalah setiap rumah NU menjadi bagian dari gerakan sedekah berkelanjutan yang transparan, modern, dan mudah dipertanggungjawabkan.
+Exit criteria:
+
+- Sistem siap dipakai operasional ranting secara rutin.
+
+## 20. Acceptance Criteria Global
+
+Sebuah fitur dianggap selesai jika:
+
+- Data tersimpan di backend/database jika fitur tersebut bukan dummy.
+- Validasi server-side tersedia.
+- Permission role diterapkan.
+- UI responsive.
+- Loading, empty state, dan error state ditangani.
+- Aksi penting tercatat audit log.
+- Tidak membocorkan data sensitif.
+- Lint dan build lolos.
+- Jika menyentuh deployment, Jenkins build harus sukses.
+
+## 21. Testing Strategy
+
+### 21.1 Manual Test Wajib
+
+- Login tiap role.
+- Akses halaman sesuai role.
+- Tambah rumah.
+- Assign kaleng.
+- Input penarikan.
+- Validasi penarikan.
+- Tolak penarikan.
+- Lihat saldo.
+- Export laporan.
+- Akses halaman publik.
+
+### 21.2 Automated Test Target
+
+- Unit test helper validasi.
+- Test permission server.
+- Test kalkulasi saldo.
+- Test API mutasi utama.
+- Test sanitasi data publik.
+
+## 22. Risiko dan Mitigasi
+
+| Risiko | Dampak | Mitigasi |
+| --- | --- | --- |
+| Data manual awal tidak rapi | Import sulit | Sediakan template Excel dan validasi import |
+| Petugas tidak terbiasa aplikasi | Input lambat | Mobile-first dan alur sederhana |
+| Role terlalu longgar | Data bocor | RBAC server-side |
+| Saldo tidak konsisten | Laporan tidak dipercaya | Transaksi immutable, validasi bendahara, audit log |
+| Tunnel/domain gagal | Akses publik terganggu | Health check origin dan DNS checklist |
+| Backup tidak diuji | Risiko kehilangan data | Jadwalkan restore test |
+
+## 23. Keputusan Teknis yang Dikunci
+
+- Produk utama tetap bernama KOINNU Ranting System.
+- Bahasa UI dan dokumen produk menggunakan Bahasa Indonesia.
+- Project ini bukan MPJ Event dan tidak boleh memakai asumsi domain bisnis MPJ Event.
+- Port production saat ini adalah `3002` di host/LXC.
+- Job Jenkins saat ini adalah `LAZISNU-PAKISKEMBAR`.
+- Repo utama adalah `https://github.com/Misyad/lazsinupakiskembar.git`.
+- PRD ini menjadi pedoman utama sampai digantikan oleh revisi berikutnya.
+
+## 24. Definisi Done untuk Phase Berikutnya
+
+Phase backend pertama dianggap selesai jika:
+
+- Ada schema database.
+- Ada auth nyata.
+- Ada role Super Admin, Admin Ranting, Petugas Lapangan, Bendahara.
+- Ada API rumah, kaleng, dan penarikan.
+- Ada audit log minimal.
+- UI tidak lagi bergantung pada dummy state untuk data utama.
+- Jenkins build dan deploy sukses.
+- Domain production bisa dibuka.
+
