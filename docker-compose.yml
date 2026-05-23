@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  lazisnu-pakiskembar-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lazisnu-pakiskembar-app:latest
+    container_name: lazisnu-pakiskembar-app
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
