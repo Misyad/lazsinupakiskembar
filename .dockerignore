@@ -1,0 +1,6 @@
+node_modules
+.next
+.git
+.codex-ssh-runner
+.env*.local
+npm-debug.log*

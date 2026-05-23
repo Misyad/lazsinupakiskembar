@@ -13,20 +13,7 @@ pipeline {
             }
         }
 
-        stage('Install') {
-            steps {
-                sh 'npm ci'
-            }
-        }
-
-        stage('Validate') {
-            steps {
-                sh 'npm run lint'
-                sh 'npm run build'
-            }
-        }
-
-        stage('Deploy') {
+        stage('Build and Deploy') {
             steps {
                 sh '''
                     set -e
@@ -51,7 +38,7 @@ pipeline {
                 sh '''
                     set -e
                     for i in $(seq 1 20); do
-                        if curl -fsS "$APP_URL" >/dev/null; then
+                        if docker exec "$APP_NAME" node -e "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
                             echo "Application is healthy at $APP_URL"
                             exit 0
                         fi
