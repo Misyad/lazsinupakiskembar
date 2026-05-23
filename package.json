@@ -6,16 +6,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:init": "node scripts/init-db.mjs",
+    "prisma:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:init": "prisma migrate deploy && prisma db seed",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@prisma/client": "^6.16.3",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^0.468.0",
-    "mysql2": "^3.22.3",
     "next": "^15.0.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zod": "^4.4.3"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -26,6 +33,7 @@
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.0.4",
     "postcss": "^8.4.49",
+    "prisma": "^6.16.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
   }

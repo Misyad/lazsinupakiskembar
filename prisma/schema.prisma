@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CoinBoxStatus {
+  ACTIVE
+  LOST
+  DAMAGED
+  INACTIVE
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  ENDED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+}
+
+enum CashTransactionType {
+  INCOME
+  EXPENSE
+  ADJUSTMENT
+}
+
+enum PublicReportStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  name         String        @db.VarChar(120)
+  email        String        @unique @db.VarChar(180)
+  phone        String?       @db.VarChar(30)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  status       UserStatus    @default(ACTIVE)
+  lastLoginAt  DateTime?     @map("last_login_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  sessions     UserSession[]
+  userRoles    UserRole[]
+  withdrawals  Withdrawal[]  @relation("WithdrawalCollector")
+  auditLogs    AuditLog[]
+
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id              Int              @id @default(autoincrement())
+  code            String           @unique @db.VarChar(60)
+  name            String           @db.VarChar(80)
+  description     String?          @db.VarChar(255)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              Int              @id @default(autoincrement())
+  code            String           @unique @db.VarChar(120)
+  name            String           @db.VarChar(120)
+  description     String?          @db.VarChar(255)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  roleId    Int      @map("role_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int        @map("role_id")
+  permissionId Int        @map("permission_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserSession {
+  id        BigInt   @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  tokenHash String   @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+model Area {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(40)
+  name      String   @db.VarChar(120)
+  parentId  Int?     @map("parent_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  parent    Area?    @relation("AreaChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Area[]   @relation("AreaChildren")
+  houses    House[]
+
+  @@index([parentId])
+  @@map("areas")
+}
+
+model House {
+  id          Int                    @id @default(autoincrement())
+  areaId      Int                    @map("area_id")
+  name        String                 @db.VarChar(140)
+  phone       String?                @db.VarChar(30)
+  address     String                 @db.VarChar(255)
+  rtRw        String                 @map("rt_rw") @db.VarChar(30)
+  active      Boolean                @default(true)
+  joinedAt    DateTime               @map("joined_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+  deletedAt   DateTime?              @map("deleted_at")
+  area        Area                   @relation(fields: [areaId], references: [id])
+  assignments CoinBoxAssignment[]
+  withdrawals Withdrawal[]
+
+  @@index([areaId])
+  @@index([rtRw])
+  @@index([active])
+  @@map("houses")
+}
+
+model CoinBox {
+  id             Int                    @id @default(autoincrement())
+  boxNumber      String                 @unique @map("box_number") @db.VarChar(60)
+  status         CoinBoxStatus          @default(ACTIVE)
+  distributedAt  DateTime?              @map("distributed_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  deletedAt      DateTime?              @map("deleted_at")
+  assignments    CoinBoxAssignment[]
+  withdrawals    Withdrawal[]
+
+  @@index([status])
+  @@map("coin_boxes")
+}
+
+model CoinBoxAssignment {
+  id          Int              @id @default(autoincrement())
+  coinBoxId   Int              @map("coin_box_id")
+  houseId     Int              @map("house_id")
+  assignedAt  DateTime         @default(now()) @map("assigned_at")
+  endedAt     DateTime?        @map("ended_at")
+  status      AssignmentStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  coinBox     CoinBox          @relation(fields: [coinBoxId], references: [id])
+  house       House            @relation(fields: [houseId], references: [id])
+
+  @@index([coinBoxId])
+  @@index([houseId])
+  @@index([status])
+  @@map("coin_box_assignments")
+}
+
+model Withdrawal {
+  id           Int              @id @default(autoincrement())
+  coinBoxId    Int              @map("coin_box_id")
+  houseId      Int              @map("house_id")
+  collectorId  Int              @map("collector_id")
+  amount       Int
+  status       WithdrawalStatus @default(PENDING)
+  notes        String?          @db.VarChar(500)
+  collectedAt  DateTime         @map("collected_at")
+  validatedAt  DateTime?        @map("validated_at")
+  rejectedAt   DateTime?        @map("rejected_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  coinBox      CoinBox          @relation(fields: [coinBoxId], references: [id])
+  house        House            @relation(fields: [houseId], references: [id])
+  collector    User             @relation("WithdrawalCollector", fields: [collectorId], references: [id])
+  transactions CashTransaction[]
+
+  @@index([status])
+  @@index([collectedAt])
+  @@index([coinBoxId])
+  @@index([houseId])
+  @@map("withdrawals")
+}
+
+model FinancialCategory {
+  id           Int               @id @default(autoincrement())
+  code         String            @unique @db.VarChar(60)
+  name         String            @db.VarChar(120)
+  type         CashTransactionType
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  deletedAt    DateTime?         @map("deleted_at")
+  transactions CashTransaction[]
+
+  @@index([type])
+  @@map("financial_categories")
+}
+
+model CashTransaction {
+  id           Int                 @id @default(autoincrement())
+  categoryId   Int                 @map("category_id")
+  withdrawalId Int?                @map("withdrawal_id")
+  type         CashTransactionType
+  amount       Int
+  description  String              @db.VarChar(255)
+  transactionAt DateTime           @map("transaction_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  category     FinancialCategory   @relation(fields: [categoryId], references: [id])
+  withdrawal   Withdrawal?         @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
+
+  @@index([type])
+  @@index([transactionAt])
+  @@index([categoryId])
+  @@index([withdrawalId])
+  @@map("cash_transactions")
+}
+
+model PublicReport {
+  id          Int                @id @default(autoincrement())
+  period      String             @unique @db.VarChar(40)
+  title       String             @db.VarChar(160)
+  summary     String             @db.Text
+  status      PublicReportStatus @default(DRAFT)
+  publishedAt DateTime?          @map("published_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  attachments Attachment[]
+
+  @@index([status])
+  @@map("public_reports")
+}
+
+model Attachment {
+  id             Int           @id @default(autoincrement())
+  publicReportId Int?          @map("public_report_id")
+  fileName       String        @map("file_name") @db.VarChar(180)
+  fileUrl        String        @map("file_url") @db.VarChar(500)
+  mimeType       String        @map("mime_type") @db.VarChar(120)
+  sizeBytes      Int           @map("size_bytes")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  publicReport   PublicReport? @relation(fields: [publicReportId], references: [id], onDelete: SetNull)
+
+  @@index([publicReportId])
+  @@map("attachments")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    Int?     @map("actor_id")
+  action     String   @db.VarChar(120)
+  entityType String   @map("entity_type") @db.VarChar(80)
+  entityId   String?  @map("entity_id") @db.VarChar(80)
+  ipAddress  String?  @map("ip_address") @db.VarChar(80)
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

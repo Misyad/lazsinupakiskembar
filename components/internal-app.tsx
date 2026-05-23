@@ -22,14 +22,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Role =
-  | "Super Admin"
-  | "Admin Ranting"
-  | "Petugas Lapangan"
-  | "Bendahara"
-  | "Viewer Publik";
+  | "SUPER_ADMIN"
+  | "ADMIN_RANTING"
+  | "PETUGAS"
+  | "BENDAHARA";
 
 type House = {
   id: number;
@@ -46,8 +45,9 @@ type House = {
 type CoinBox = {
   id: number;
   boxNumber: string;
-  status: "Active" | "Lost" | "Damaged" | "Inactive";
-  houseId: number;
+  status: "ACTIVE" | "LOST" | "DAMAGED" | "INACTIVE";
+  houseId: number | null;
+  houseName?: string;
   distributedAt: string;
 };
 
@@ -57,7 +57,7 @@ type Withdrawal = {
   houseName: string;
   amount: number;
   collector: string;
-  status: "Pending" | "Validated" | "Rejected";
+  status: "PENDING" | "VALIDATED" | "REJECTED";
   notes: string;
   createdAt: string;
 };
@@ -73,11 +73,10 @@ type DashboardStats = {
 type Account = { id?: number; role: Role; name: string; email: string };
 
 const accounts: Account[] = [
-  { role: "Super Admin", name: "Admin Pusat", email: "superadmin@koinnu.local" },
-  { role: "Admin Ranting", name: "Admin Ranting", email: "admin@ranting.local" },
-  { role: "Petugas Lapangan", name: "Petugas A", email: "petugas@ranting.local" },
-  { role: "Bendahara", name: "Bendahara", email: "bendahara@ranting.local" },
-  { role: "Viewer Publik", name: "Viewer Publik", email: "publik@koinnu.local" }
+  { role: "SUPER_ADMIN", name: "Admin Pusat", email: "superadmin@koinnu.local" },
+  { role: "ADMIN_RANTING", name: "Admin Ranting", email: "admin@ranting.local" },
+  { role: "PETUGAS", name: "Petugas A", email: "petugas@ranting.local" },
+  { role: "BENDAHARA", name: "Bendahara", email: "bendahara@ranting.local" }
 ];
 
 const initialHouses: House[] = [
@@ -128,10 +127,10 @@ const initialHouses: House[] = [
 ];
 
 const initialBoxes: CoinBox[] = [
-  { id: 1, boxNumber: "KNU-RT01-001", status: "Active", houseId: 1, distributedAt: "2026-01-08" },
-  { id: 2, boxNumber: "KNU-RT02-014", status: "Active", houseId: 2, distributedAt: "2026-01-11" },
-  { id: 3, boxNumber: "KNU-RT03-006", status: "Inactive", houseId: 3, distributedAt: "2025-12-20" },
-  { id: 4, boxNumber: "KNU-RT01-021", status: "Damaged", houseId: 4, distributedAt: "2026-02-03" }
+  { id: 1, boxNumber: "KNU-RT01-001", status: "ACTIVE", houseId: 1, distributedAt: "2026-01-08" },
+  { id: 2, boxNumber: "KNU-RT02-014", status: "ACTIVE", houseId: 2, distributedAt: "2026-01-11" },
+  { id: 3, boxNumber: "KNU-RT03-006", status: "INACTIVE", houseId: 3, distributedAt: "2025-12-20" },
+  { id: 4, boxNumber: "KNU-RT01-021", status: "DAMAGED", houseId: 4, distributedAt: "2026-02-03" }
 ];
 
 const initialWithdrawals: Withdrawal[] = [
@@ -141,7 +140,7 @@ const initialWithdrawals: Withdrawal[] = [
     houseName: "Keluarga H. Mahfudz",
     amount: 127500,
     collector: "Petugas A",
-    status: "Validated",
+    status: "VALIDATED",
     notes: "Setoran rutin bulan Mei",
     createdAt: "2026-05-03 09:12"
   },
@@ -151,7 +150,7 @@ const initialWithdrawals: Withdrawal[] = [
     houseName: "Keluarga Ibu Aminah",
     amount: 85000,
     collector: "Petugas B",
-    status: "Pending",
+    status: "PENDING",
     notes: "Menunggu hitung ulang bendahara",
     createdAt: "2026-05-15 16:30"
   },
@@ -161,7 +160,7 @@ const initialWithdrawals: Withdrawal[] = [
     houseName: "Keluarga Bu Siti",
     amount: 42000,
     collector: "Petugas A",
-    status: "Rejected",
+    status: "REJECTED",
     notes: "Kaleng rusak, perlu klarifikasi",
     createdAt: "2026-05-16 10:05"
   }
@@ -176,14 +175,14 @@ type NavItem = {
 };
 
 const navigation: NavItem[] = [
-  { key: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan", "Bendahara"] },
-  { key: "houses", href: "/houses", label: "Rumah", icon: Home, roles: ["Super Admin", "Admin Ranting"] },
-  { key: "coin-boxes", href: "/coin-boxes", label: "Kaleng", icon: Boxes, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan"] },
-  { key: "withdrawals", href: "/withdrawals", label: "Penarikan", icon: QrCode, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan", "Bendahara"] },
-  { key: "finance", href: "/finance", label: "Keuangan", icon: WalletCards, roles: ["Super Admin", "Admin Ranting", "Bendahara"] },
-  { key: "reports", href: "/reports", label: "Laporan", icon: FileText, roles: ["Super Admin", "Admin Ranting", "Bendahara"] },
-  { key: "settings", href: "/settings", label: "Pengaturan", icon: Settings, roles: ["Super Admin"] },
-  { key: "audit-logs", href: "/audit-logs", label: "Audit Logs", icon: ClipboardList, roles: ["Super Admin"] }
+  { key: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS", "BENDAHARA"] },
+  { key: "houses", href: "/houses", label: "Rumah", icon: Home, roles: ["SUPER_ADMIN", "ADMIN_RANTING"] },
+  { key: "coin-boxes", href: "/coin-boxes", label: "Kaleng", icon: Boxes, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS"] },
+  { key: "withdrawals", href: "/withdrawals", label: "Penarikan", icon: QrCode, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS", "BENDAHARA"] },
+  { key: "finance", href: "/finance", label: "Keuangan", icon: WalletCards, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
+  { key: "reports", href: "/reports", label: "Laporan", icon: FileText, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
+  { key: "settings", href: "/settings", label: "Pengaturan", icon: Settings, roles: ["SUPER_ADMIN"] },
+  { key: "audit-logs", href: "/audit-logs", label: "Audit Logs", icon: ClipboardList, roles: ["SUPER_ADMIN"] }
 ];
 
 const currency = new Intl.NumberFormat("id-ID", {
@@ -206,8 +205,10 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   const router = useRouter();
   const [account] = useState<Account>(initialUser);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState("");
   const [houses, setHouses] = useState(initialHouses);
-  const [boxes] = useState(initialBoxes);
+  const [boxes, setBoxes] = useState(initialBoxes);
   const [withdrawals, setWithdrawals] = useState(initialWithdrawals);
   const [searchTerm, setSearchTerm] = useState("");
   const [rtFilter, setRtFilter] = useState("Semua");
@@ -218,6 +219,50 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
 
   const availableNav = navigation.filter((item) => item.roles.includes(account.role));
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadData() {
+      setDataLoading(true);
+      setDataError("");
+      try {
+        const [housesResponse, boxesResponse, withdrawalsResponse] = await Promise.all([
+          fetch("/api/houses", { cache: "no-store" }),
+          fetch("/api/coin-boxes", { cache: "no-store" }),
+          fetch("/api/withdrawals", { cache: "no-store" })
+        ]);
+
+        if (!housesResponse.ok || !boxesResponse.ok || !withdrawalsResponse.ok) {
+          throw new Error("Gagal mengambil data server.");
+        }
+
+        const [housesPayload, boxesPayload, withdrawalsPayload] = await Promise.all([
+          housesResponse.json(),
+          boxesResponse.json(),
+          withdrawalsResponse.json()
+        ]);
+
+        if (!active) return;
+        setHouses(housesPayload.houses ?? []);
+        setBoxes(boxesPayload.coinBoxes ?? []);
+        setWithdrawals(withdrawalsPayload.withdrawals ?? []);
+        const firstBox = boxesPayload.coinBoxes?.[0]?.boxNumber;
+        if (firstBox) setSelectedBox(firstBox);
+      } catch (error) {
+        if (active) {
+          setDataError(error instanceof Error ? error.message : "Gagal mengambil data server.");
+        }
+      } finally {
+        if (active) setDataLoading(false);
+      }
+    }
+
+    loadData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/login");
@@ -225,12 +270,12 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   }
 
   const stats = useMemo(() => {
-    const validated = withdrawals.filter((item) => item.status === "Validated");
+    const validated = withdrawals.filter((item) => item.status === "VALIDATED");
     const income = validated.reduce((sum, item) => sum + item.amount, 0);
-    const pending = withdrawals.filter((item) => item.status === "Pending").length;
+    const pending = withdrawals.filter((item) => item.status === "PENDING").length;
     return {
       activeHouses: houses.filter((item) => item.active).length,
-      activeBoxes: boxes.filter((item) => item.status === "Active").length,
+      activeBoxes: boxes.filter((item) => item.status === "ACTIVE").length,
       income,
       pending,
       balance: income - 285000
@@ -245,53 +290,69 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
     return matchesSearch && matchesRt;
   });
 
-  const selectedHouse = houses.find((house) => house.boxNumber === selectedBox);
+  const selectedCoinBox = boxes.find((box) => box.boxNumber === selectedBox);
+  const selectedHouse = houses.find((house) => house.id === selectedCoinBox?.houseId || house.boxNumber === selectedBox);
 
-  function addHouse() {
+  async function addHouse() {
     if (!newHouseName.trim()) return;
-    const nextId = houses.length + 1;
-    const nextBox = `KNU-RT01-${String(nextId + 30).padStart(3, "0")}`;
-    setHouses((items) => [
-      {
-        id: nextId,
+    setDataError("");
+    const response = await fetch("/api/houses", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
         name: newHouseName.trim(),
-        phone: "08xxxxxxxxxx",
-        address: "Alamat baru",
-        rtRw: "RT01/RW02",
-        village: "Pakiskembar",
-        active: true,
-        joinedAt: "2026-05-18",
-        boxNumber: nextBox
-      },
-      ...items
-    ]);
+        phone: "081234567890",
+        address: "Alamat baru Pakiskembar",
+        rtRw: "RT01/RW02"
+      })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setDataError(payload.error ?? "Gagal menambah rumah.");
+      return;
+    }
+    setHouses((items) => [payload.house, ...items]);
     setNewHouseName("");
   }
 
-  function submitWithdrawal() {
+  async function submitWithdrawal() {
     const amount = Number(withdrawalAmount);
-    if (!selectedHouse || !Number.isFinite(amount) || amount <= 0) return;
-    setWithdrawals((items) => [
-      {
-        id: items.length + 1,
-        boxNumber: selectedBox,
-        houseName: selectedHouse.name,
+    if (!selectedHouse || !selectedCoinBox || !Number.isFinite(amount) || amount <= 0) return;
+    setDataError("");
+    const response = await fetch("/api/withdrawals", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        coinBoxId: selectedCoinBox.id,
+        houseId: selectedHouse.id,
         amount,
-        collector: account.name,
-        status: "Pending",
-        notes: withdrawalNotes || "Setoran baru",
-        createdAt: "2026-05-18 22:40"
-      },
-      ...items
-    ]);
+        notes: withdrawalNotes || "Setoran baru"
+      })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setDataError(payload.error ?? "Gagal menyimpan penarikan.");
+      return;
+    }
+    setWithdrawals((items) => [payload.withdrawal, ...items]);
     setWithdrawalAmount("");
     setWithdrawalNotes("");
   }
 
-  function updateWithdrawal(id: number, status: Withdrawal["status"]) {
-    setWithdrawals((items) =>
-      items.map((item) => (item.id === id ? { ...item, status } : item))
-    );
+  async function updateWithdrawal(id: number, status: Withdrawal["status"]) {
+    setDataError("");
+    const endpoint = status === "VALIDATED" ? "validate" : "reject";
+    const response = await fetch(`/api/withdrawals/${id}/${endpoint}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: status === "REJECTED" ? JSON.stringify({ reason: "Ditolak bendahara" }) : "{}"
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setDataError(payload.error ?? "Gagal memperbarui penarikan.");
+      return;
+    }
+    setWithdrawals((items) => items.map((item) => (item.id === id ? payload.withdrawal : item)));
   }
 
   return (
@@ -336,7 +397,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
         </nav>
         <div className="mt-8 rounded-[8px] border border-slate-200 bg-paper p-4">
           <p className="text-sm font-semibold text-ink">{account.name}</p>
-          <p className="mt-1 text-xs text-slate-500">{account.role}</p>
+          <p className="mt-1 text-xs text-slate-500">{roleLabel(account.role)}</p>
           <button
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
             onClick={logout}
@@ -370,12 +431,22 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
             </button>
             <div className="hidden items-center gap-2 rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm md:flex">
               <UserRound size={16} className="text-brand-600" />
-              {account.role}
+              {roleLabel(account.role)}
             </div>
           </div>
         </header>
 
         <div className="p-4 lg:p-8">
+          {dataError ? (
+            <div className="mb-4 rounded-[8px] border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {dataError}
+            </div>
+          ) : null}
+          {dataLoading ? (
+            <div className="mb-4 rounded-[8px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-soft">
+              Memuat data server...
+            </div>
+          ) : null}
           {initialPage === "dashboard" && <Dashboard stats={stats} withdrawals={withdrawals} />}
           {initialPage === "houses" && (
             <HousesView
@@ -432,6 +503,16 @@ function pageTitle(page: string) {
   return titles[page] ?? "Dashboard";
 }
 
+function roleLabel(role: Role) {
+  const labels: Record<Role, string> = {
+    SUPER_ADMIN: "Super Admin",
+    ADMIN_RANTING: "Admin Ranting",
+    PETUGAS: "Petugas",
+    BENDAHARA: "Bendahara"
+  };
+  return labels[role];
+}
+
 function Metric({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "light" }) {
   return (
     <div className={`rounded-[8px] border p-4 ${tone === "light" ? "border-white/20 bg-white/10" : "border-slate-200 bg-white"}`}>
@@ -476,7 +557,7 @@ function Dashboard({ stats, withdrawals }: { stats: DashboardStats; withdrawals:
       <Panel title="Transaksi terbaru">
         <DataTable
           headers={["Kaleng", "Rumah", "Nominal", "Status"]}
-          rows={recent.map((item) => [item.boxNumber, item.houseName, currency.format(item.amount), item.status])}
+          rows={recent.map((item) => [item.boxNumber, item.houseName, currency.format(item.amount), statusLabel(item.status)])}
         />
       </Panel>
     </div>
@@ -601,7 +682,7 @@ function WithdrawalsView(props: {
   withdrawals: Withdrawal[];
   updateWithdrawal: (id: number, status: Withdrawal["status"]) => void;
 }) {
-  const canValidate = ["Super Admin", "Admin Ranting", "Bendahara"].includes(props.account.role);
+  const canValidate = ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"].includes(props.account.role);
   return (
     <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
       <Panel title="Input penarikan">
@@ -613,7 +694,7 @@ function WithdrawalsView(props: {
           >
             {props.boxes.map((box) => (
               <option key={box.id} value={box.boxNumber}>
-                {box.boxNumber} - {box.status}
+                {box.boxNumber} - {statusLabel(box.status)}
               </option>
             ))}
           </select>
@@ -653,12 +734,12 @@ function WithdrawalsView(props: {
               </div>
               <p className="mt-3 text-xl font-semibold text-ink">{currency.format(item.amount)}</p>
               <p className="mt-1 text-sm text-slate-500">{item.notes}</p>
-              {canValidate && item.status === "Pending" ? (
+              {canValidate && item.status === "PENDING" ? (
                 <div className="mt-4 flex gap-2">
-                  <button className="rounded-[6px] bg-brand-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => props.updateWithdrawal(item.id, "Validated")}>
+                  <button className="rounded-[6px] bg-brand-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => props.updateWithdrawal(item.id, "VALIDATED")}>
                     Validasi
                   </button>
-                  <button className="rounded-[6px] border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600" onClick={() => props.updateWithdrawal(item.id, "Rejected")}>
+                  <button className="rounded-[6px] border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600" onClick={() => props.updateWithdrawal(item.id, "REJECTED")}>
                     Tolak
                   </button>
                 </div>
@@ -694,12 +775,12 @@ function FinanceView({
             item.houseName,
             currency.format(item.amount),
             item.collector,
-            item.status,
-            item.status === "Pending" ? (
+            statusLabel(item.status),
+            item.status === "PENDING" ? (
               <button
                 key={item.id}
                 className="rounded-[6px] bg-brand-600 px-3 py-2 text-sm font-semibold text-white"
-                onClick={() => updateWithdrawal(item.id, "Validated")}
+                onClick={() => updateWithdrawal(item.id, "VALIDATED")}
               >
                 Validasi
               </button>
@@ -734,7 +815,7 @@ function ReportsView({ stats, withdrawals }: { stats: DashboardStats; withdrawal
       <Panel title="Ringkasan laporan Mei 2026">
         <div className="grid gap-4 md:grid-cols-3">
           <Metric label="Transaksi" value={String(withdrawals.length)} />
-          <Metric label="Tervalidasi" value={String(withdrawals.filter((item) => item.status === "Validated").length)} />
+          <Metric label="Tervalidasi" value={String(withdrawals.filter((item) => item.status === "VALIDATED").length)} />
           <Metric label="Total resmi" value={currency.format(stats.income)} />
         </div>
       </Panel>
@@ -748,7 +829,7 @@ function SettingsView() {
       <Panel title="Role dan permission">
         <DataTable
           headers={["Role", "Status"]}
-          rows={accounts.map((item) => [item.role, "Aktif"])}
+          rows={accounts.map((item) => [roleLabel(item.role), "Aktif"])}
         />
       </Panel>
       <Panel title="Integrasi WhatsApp">
@@ -799,19 +880,32 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    Active: "bg-brand-50 text-brand-700",
-    Validated: "bg-brand-50 text-brand-700",
-    Pending: "bg-amber-50 text-amber-700",
-    Rejected: "bg-red-50 text-red-700",
-    Lost: "bg-red-50 text-red-700",
-    Damaged: "bg-orange-50 text-orange-700",
-    Inactive: "bg-slate-100 text-slate-600"
+    ACTIVE: "bg-brand-50 text-brand-700",
+    VALIDATED: "bg-brand-50 text-brand-700",
+    PENDING: "bg-amber-50 text-amber-700",
+    REJECTED: "bg-red-50 text-red-700",
+    LOST: "bg-red-50 text-red-700",
+    DAMAGED: "bg-orange-50 text-orange-700",
+    INACTIVE: "bg-slate-100 text-slate-600"
   };
   return (
-    <span className={`rounded-[6px] px-2.5 py-1 text-xs font-semibold ${styles[status] ?? styles.Inactive}`}>
-      {status}
+    <span className={`rounded-[6px] px-2.5 py-1 text-xs font-semibold ${styles[status] ?? styles.INACTIVE}`}>
+      {statusLabel(status)}
     </span>
   );
+}
+
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    ACTIVE: "Aktif",
+    VALIDATED: "Tervalidasi",
+    PENDING: "Pending",
+    REJECTED: "Ditolak",
+    LOST: "Hilang",
+    DAMAGED: "Rusak",
+    INACTIVE: "Nonaktif"
+  };
+  return labels[status] ?? status;
 }
 
 function DataTable({ headers, rows }: { headers: string[]; rows: Array<Array<React.ReactNode>> }) {

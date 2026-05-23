@@ -1,32 +1,33 @@
 import bcrypt from "bcryptjs";
-import type mysql from "mysql2/promise";
-import { db } from "@/lib/db";
 import { createSession } from "@/lib/auth";
 import { apiJson, applyCorsOrigin, corsPreflight } from "@/lib/api-response";
+import { prisma } from "@/src/lib/db/prisma";
+import { loginSchema } from "@/src/lib/validations/auth";
+import { requestIp, writeAuditLog } from "@/src/lib/audit/audit";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
-  const email = String(body?.email ?? "").trim().toLowerCase();
-  const password = String(body?.password ?? "");
+  const parsed = loginSchema.safeParse(body);
 
-  if (!email || !password) {
+  if (!parsed.success) {
     return applyCorsOrigin(
       apiJson({ error: "Email dan password wajib diisi." }, { status: 400 }),
       request
     );
   }
 
-  const [rows] = await db.execute<mysql.RowDataPacket[]>(
-    `SELECT users.id, users.name, users.email, users.password_hash, roles.name AS role
-     FROM users
-     INNER JOIN roles ON roles.id = users.role_id
-     WHERE users.email = ?
-       AND users.status = 'active'
-     LIMIT 1`,
-    [email]
-  );
+  const { email, password } = parsed.data;
+  const user = await prisma.user.findFirst({
+    where: {
+      email,
+      status: "ACTIVE",
+      deletedAt: null
+    },
+    include: {
+      userRoles: { include: { role: true } }
+    }
+  });
 
-  const user = rows[0];
   if (!user) {
     return applyCorsOrigin(
       apiJson({ error: "Email atau password salah." }, { status: 401 }),
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const valid = await bcrypt.compare(password, String(user.password_hash));
+  const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return applyCorsOrigin(
       apiJson({ error: "Email atau password salah." }, { status: 401 }),
@@ -42,16 +43,24 @@ export async function POST(request: Request) {
     );
   }
 
-  await db.execute("UPDATE users SET last_login_at = NOW() WHERE id = ?", [user.id]);
-  await createSession(Number(user.id));
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+  await createSession(user.id);
+  await writeAuditLog({
+    actorId: user.id,
+    action: "auth.login",
+    entityType: "User",
+    entityId: user.id,
+    ipAddress: requestIp(request)
+  });
 
   return applyCorsOrigin(
     apiJson({
       user: {
-        id: Number(user.id),
-        name: String(user.name),
-        email: String(user.email),
-        role: String(user.role)
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.userRoles[0]?.role.code ?? "PETUGAS",
+        roles: user.userRoles.map((item) => item.role.code)
       }
     }),
     request
