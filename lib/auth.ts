@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { randomBytes, createHash } from "crypto";
 import type mysql from "mysql2/promise";
 import { db } from "@/lib/db";
+import { SESSION_COOKIE } from "@/lib/session-cookie";
 
 export type AuthRole =
   | "Super Admin"
@@ -17,7 +18,6 @@ export type AuthUser = {
   role: AuthRole;
 };
 
-const SESSION_COOKIE = "koinnu_session";
 const SESSION_DAYS = 7;
 
 function hashToken(token: string) {

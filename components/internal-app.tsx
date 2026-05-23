@@ -7,7 +7,6 @@ import {
   ClipboardList,
   Coins,
   Download,
-  Eye,
   FileText,
   Home,
   LayoutDashboard,
@@ -16,13 +15,14 @@ import {
   QrCode,
   Search,
   Settings,
-  ShieldCheck,
   UserRound,
   WalletCards,
   X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
 type Role =
   | "Super Admin"
@@ -70,7 +70,7 @@ type DashboardStats = {
   balance: number;
 };
 
-type Account = { role: Role; name: string; email: string };
+type Account = { id?: number; role: Role; name: string; email: string };
 
 const accounts: Account[] = [
   { role: "Super Admin", name: "Admin Pusat", email: "superadmin@koinnu.local" },
@@ -169,20 +169,21 @@ const initialWithdrawals: Withdrawal[] = [
 
 type NavItem = {
   key: string;
+  href: string;
   label: string;
   icon: LucideIcon;
   roles: Role[];
 };
 
 const navigation: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan", "Bendahara"] },
-  { key: "rumah", label: "Rumah", icon: Home, roles: ["Super Admin", "Admin Ranting"] },
-  { key: "kaleng", label: "Kaleng", icon: Boxes, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan"] },
-  { key: "penarikan", label: "Penarikan", icon: QrCode, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan", "Bendahara"] },
-  { key: "keuangan", label: "Keuangan", icon: WalletCards, roles: ["Super Admin", "Admin Ranting", "Bendahara"] },
-  { key: "laporan", label: "Laporan", icon: FileText, roles: ["Super Admin", "Admin Ranting", "Bendahara"] },
-  { key: "publik", label: "Transparansi", icon: Eye, roles: ["Super Admin", "Admin Ranting", "Bendahara", "Viewer Publik"] },
-  { key: "pengaturan", label: "Pengaturan", icon: Settings, roles: ["Super Admin"] }
+  { key: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan", "Bendahara"] },
+  { key: "houses", href: "/houses", label: "Rumah", icon: Home, roles: ["Super Admin", "Admin Ranting"] },
+  { key: "coin-boxes", href: "/coin-boxes", label: "Kaleng", icon: Boxes, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan"] },
+  { key: "withdrawals", href: "/withdrawals", label: "Penarikan", icon: QrCode, roles: ["Super Admin", "Admin Ranting", "Petugas Lapangan", "Bendahara"] },
+  { key: "finance", href: "/finance", label: "Keuangan", icon: WalletCards, roles: ["Super Admin", "Admin Ranting", "Bendahara"] },
+  { key: "reports", href: "/reports", label: "Laporan", icon: FileText, roles: ["Super Admin", "Admin Ranting", "Bendahara"] },
+  { key: "settings", href: "/settings", label: "Pengaturan", icon: Settings, roles: ["Super Admin"] },
+  { key: "audit-logs", href: "/audit-logs", label: "Audit Logs", icon: ClipboardList, roles: ["Super Admin"] }
 ];
 
 const currency = new Intl.NumberFormat("id-ID", {
@@ -191,15 +192,19 @@ const currency = new Intl.NumberFormat("id-ID", {
   maximumFractionDigits: 0
 });
 
-export default function HomePage() {
-  const [account, setAccount] = useState<Account>(accounts[1]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState("");
-  const [loginEmail, setLoginEmail] = useState("admin@ranting.local");
-  const [loginPassword, setLoginPassword] = useState("Admin123!");
-  const [activePage, setActivePage] = useState("dashboard");
+export type InternalPage =
+  | "dashboard"
+  | "houses"
+  | "coin-boxes"
+  | "withdrawals"
+  | "finance"
+  | "reports"
+  | "settings"
+  | "audit-logs";
+
+export function InternalApp({ initialPage, initialUser }: { initialPage: InternalPage; initialUser: Account }) {
+  const router = useRouter();
+  const [account] = useState<Account>(initialUser);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [houses, setHouses] = useState(initialHouses);
   const [boxes] = useState(initialBoxes);
@@ -213,61 +218,10 @@ export default function HomePage() {
 
   const availableNav = navigation.filter((item) => item.roles.includes(account.role));
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadSession() {
-      try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        if (!response.ok) return;
-        const payload = await response.json();
-        if (active && payload.user) {
-          setAccount(payload.user);
-          setIsLoggedIn(true);
-        }
-      } finally {
-        if (active) setAuthLoading(false);
-      }
-    }
-
-    loadSession();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoginError("");
-    setLoginLoading(true);
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword })
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        setLoginError(payload.error ?? "Login gagal.");
-        return;
-      }
-
-      setAccount(payload.user);
-      setIsLoggedIn(true);
-      setActivePage("dashboard");
-    } catch {
-      setLoginError("Tidak bisa menghubungi server login.");
-    } finally {
-      setLoginLoading(false);
-    }
-  }
-
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    setIsLoggedIn(false);
-    setActivePage("dashboard");
+    router.replace("/login");
+    router.refresh();
   }
 
   const stats = useMemo(() => {
@@ -340,94 +294,6 @@ export default function HomePage() {
     );
   }
 
-  if (authLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-paper p-4">
-        <div className="rounded-[8px] border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-600 shadow-soft">
-          Memeriksa sesi...
-        </div>
-      </main>
-    );
-  }
-
-  if (!isLoggedIn) {
-    return (
-      <main className="flex min-h-screen items-center justify-center p-4">
-        <section className="w-full max-w-5xl overflow-hidden rounded-[8px] border border-brand-100 bg-white shadow-soft">
-          <div className="grid min-h-[620px] lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="flex flex-col justify-between bg-brand-700 p-7 text-white sm:p-10">
-              <div>
-                <div className="mb-8 inline-flex items-center gap-2 rounded-[6px] bg-white/12 px-3 py-2 text-sm">
-                  <Coins size={18} />
-                  GERAKAN KOIN NU
-                </div>
-                <h1 className="max-w-xl text-3xl font-semibold leading-tight sm:text-5xl">
-                  KOINNU Ranting System
-                </h1>
-                <p className="mt-5 max-w-lg text-base leading-7 text-brand-50">
-                  Dashboard operasional untuk pendataan rumah, tracking kaleng,
-                  penarikan koin, validasi bendahara, dan transparansi dana ranting.
-                </p>
-              </div>
-              <div className="mt-10 grid gap-3 sm:grid-cols-3">
-                <Metric label="Rumah aktif" value="1.000+" tone="light" />
-                <Metric label="Laporan" value="Real-time" tone="light" />
-                <Metric label="Audit" value="Tercatat" tone="light" />
-              </div>
-            </div>
-
-            <div className="p-5 sm:p-8">
-              <div className="mb-6">
-                <p className="text-sm font-medium text-brand-700">Masuk aplikasi</p>
-                <h2 className="mt-2 text-2xl font-semibold text-ink">Login pengguna</h2>
-              </div>
-              <form className="grid gap-4" onSubmit={login}>
-                <label className="grid gap-2 text-sm font-medium text-slate-700">
-                  Email
-                  <input
-                    className="h-11 rounded-[8px] border border-slate-200 px-3 font-normal outline-none transition focus:border-brand-500"
-                    type="email"
-                    value={loginEmail}
-                    onChange={(event) => setLoginEmail(event.target.value)}
-                    autoComplete="email"
-                    required
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-medium text-slate-700">
-                  Password
-                  <input
-                    className="h-11 rounded-[8px] border border-slate-200 px-3 font-normal outline-none transition focus:border-brand-500"
-                    type="password"
-                    value={loginPassword}
-                    onChange={(event) => setLoginPassword(event.target.value)}
-                    autoComplete="current-password"
-                    required
-                  />
-                </label>
-                {loginError ? (
-                  <div className="rounded-[8px] border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                    {loginError}
-                  </div>
-                ) : null}
-                <button
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-brand-600 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                  disabled={loginLoading}
-                >
-                  <ShieldCheck size={18} />
-                  {loginLoading ? "Memproses..." : "Masuk"}
-                </button>
-              </form>
-              <div className="mt-6 rounded-[8px] border border-slate-200 bg-paper p-4 text-sm text-slate-600">
-                <p className="font-semibold text-ink">Akun awal</p>
-                <p className="mt-2">admin@ranting.local / Admin123!</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen lg:grid lg:grid-cols-[280px_1fr]">
       <aside
@@ -452,21 +318,19 @@ export default function HomePage() {
           {availableNav.map((item) => {
             const Icon = item.icon;
             return (
-              <button
+              <Link
                 key={item.key}
+                href={item.href}
                 className={`flex items-center gap-3 rounded-[8px] px-3 py-3 text-left text-sm font-medium transition ${
-                  activePage === item.key
+                  initialPage === item.key
                     ? "bg-brand-600 text-white"
                     : "text-slate-600 hover:bg-brand-50 hover:text-brand-700"
                 }`}
-                onClick={() => {
-                  setActivePage(item.key);
-                  setSidebarOpen(false);
-                }}
+                onClick={() => setSidebarOpen(false)}
               >
                 <Icon size={18} />
                 {item.label}
-              </button>
+              </Link>
             );
           })}
         </nav>
@@ -497,7 +361,7 @@ export default function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-700">
                 LAZISNU Pakiskembar
               </p>
-              <h2 className="text-lg font-semibold text-ink">{pageTitle(activePage)}</h2>
+              <h2 className="text-lg font-semibold text-ink">{pageTitle(initialPage)}</h2>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -512,8 +376,8 @@ export default function HomePage() {
         </header>
 
         <div className="p-4 lg:p-8">
-          {activePage === "dashboard" && <Dashboard stats={stats} withdrawals={withdrawals} />}
-          {activePage === "rumah" && (
+          {initialPage === "dashboard" && <Dashboard stats={stats} withdrawals={withdrawals} />}
+          {initialPage === "houses" && (
             <HousesView
               houses={filteredHouses}
               searchTerm={searchTerm}
@@ -525,8 +389,8 @@ export default function HomePage() {
               addHouse={addHouse}
             />
           )}
-          {activePage === "kaleng" && <BoxesView boxes={boxes} houses={houses} />}
-          {activePage === "penarikan" && (
+          {initialPage === "coin-boxes" && <BoxesView boxes={boxes} houses={houses} />}
+          {initialPage === "withdrawals" && (
             <WithdrawalsView
               account={account}
               boxes={boxes}
@@ -542,12 +406,12 @@ export default function HomePage() {
               updateWithdrawal={updateWithdrawal}
             />
           )}
-          {activePage === "keuangan" && (
+          {initialPage === "finance" && (
             <FinanceView stats={stats} withdrawals={withdrawals} updateWithdrawal={updateWithdrawal} />
           )}
-          {activePage === "laporan" && <ReportsView stats={stats} withdrawals={withdrawals} />}
-          {activePage === "publik" && <PublicView stats={stats} withdrawals={withdrawals} />}
-          {activePage === "pengaturan" && <SettingsView />}
+          {initialPage === "reports" && <ReportsView stats={stats} withdrawals={withdrawals} />}
+          {initialPage === "settings" && <SettingsView />}
+          {initialPage === "audit-logs" && <AuditLogsView account={account} withdrawals={withdrawals} />}
         </div>
       </section>
     </main>
@@ -557,13 +421,13 @@ export default function HomePage() {
 function pageTitle(page: string) {
   const titles: Record<string, string> = {
     dashboard: "Dashboard",
-    rumah: "Manajemen Rumah",
-    kaleng: "Manajemen Kaleng",
-    penarikan: "Penarikan Koin",
-    keuangan: "Keuangan",
-    laporan: "Laporan",
-    publik: "Transparansi Publik",
-    pengaturan: "Pengaturan"
+    houses: "Manajemen Rumah",
+    "coin-boxes": "Manajemen Kaleng",
+    withdrawals: "Penarikan Koin",
+    finance: "Keuangan",
+    reports: "Laporan",
+    settings: "Pengaturan",
+    "audit-logs": "Audit Logs"
   };
   return titles[page] ?? "Dashboard";
 }
@@ -878,33 +742,6 @@ function ReportsView({ stats, withdrawals }: { stats: DashboardStats; withdrawal
   );
 }
 
-function PublicView({ stats, withdrawals }: { stats: DashboardStats; withdrawals: Withdrawal[] }) {
-  return (
-    <div className="grid gap-6">
-      <section className="rounded-[8px] bg-brand-700 p-6 text-white shadow-soft">
-        <p className="text-sm font-semibold text-brand-100">Transparansi GERAKAN KOIN NU</p>
-        <h2 className="mt-3 text-3xl font-semibold">Dana terkumpul {currency.format(stats.income)}</h2>
-        <p className="mt-3 max-w-2xl text-brand-50">
-          Ringkasan publik hanya menampilkan agregat dana dan dokumentasi program. Data pribadi donatur dan catatan internal tidak ditampilkan.
-        </p>
-      </section>
-      <div className="grid gap-4 md:grid-cols-3">
-        <Metric label="Dana terkumpul" value={currency.format(stats.income)} />
-        <Metric label="Dana disalurkan" value={currency.format(285000)} />
-        <Metric label="Saldo publik" value={currency.format(stats.balance)} />
-      </div>
-      <Panel title="Aktivitas publik">
-        <DataTable
-          headers={["Tanggal", "Keterangan", "Nominal"]}
-          rows={withdrawals
-            .filter((item) => item.status === "Validated")
-            .map((item) => [item.createdAt.split(" ")[0], "Pemasukan KOIN NU", currency.format(item.amount)])}
-        />
-      </Panel>
-    </div>
-  );
-}
-
 function SettingsView() {
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -920,6 +757,29 @@ function SettingsView() {
           <p className="mt-2 text-sm leading-6 text-slate-500">
             MVP dummy menyiapkan area konfigurasi untuk Fonnte, Evolution API, atau Baileys pada fase backend.
           </p>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function AuditLogsView({ account, withdrawals }: { account: Account; withdrawals: Withdrawal[] }) {
+  const rows = [
+    ["2026-05-18 22:40", account.name, "Login pengurus", "Sesi internal aktif"],
+    ["2026-05-18 22:35", "Bendahara", "Validasi penarikan", withdrawals[0]?.boxNumber ?? "-"],
+    ["2026-05-18 21:10", "Admin Ranting", "Update data rumah", "RT01/RW02"],
+    ["2026-05-18 20:45", "Petugas Lapangan", "Input penarikan", withdrawals[1]?.boxNumber ?? "-"]
+  ];
+
+  return (
+    <div className="grid gap-6">
+      <Panel title="Audit aktivitas internal">
+        <DataTable headers={["Waktu", "Aktor", "Aktivitas", "Objek"]} rows={rows} />
+      </Panel>
+      <Panel title="Catatan keamanan">
+        <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+          Data audit masih dummy untuk MVP. Struktur halaman disiapkan agar nanti bisa
+          dihubungkan ke audit log server tanpa mengubah navigasi internal.
         </div>
       </Panel>
     </div>
