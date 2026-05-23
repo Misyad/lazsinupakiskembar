@@ -9,7 +9,11 @@ export const createWithdrawalSchema = z.object({
 });
 
 export const rejectWithdrawalSchema = z.object({
-  reason: z.string().trim().min(3).max(500).optional()
+  reason: z.string().trim().min(3).max(500)
+});
+
+export const voidWithdrawalSchema = z.object({
+  reason: z.string().trim().min(3).max(500)
 });
 
 export type CreateWithdrawalInput = z.infer<typeof createWithdrawalSchema>;

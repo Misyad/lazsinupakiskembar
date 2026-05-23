@@ -1,5 +1,7 @@
 import { prisma } from "@/src/lib/db/prisma";
 import type { AssignCoinBoxInput, CreateCoinBoxInput } from "@/src/lib/validations/coin-boxes";
+import { auditMetadata, createAuditLog } from "@/src/lib/audit/audit";
+import { BusinessRuleError } from "@/src/lib/api/errors";
 
 export async function listCoinBoxes() {
   return prisma.coinBox.findMany({
@@ -25,19 +27,28 @@ export async function createCoinBox(input: CreateCoinBoxInput) {
   });
 }
 
-export async function assignCoinBox(id: number, input: AssignCoinBoxInput) {
+export async function assignCoinBox(id: number, input: AssignCoinBoxInput, actorId?: number, ipAddress?: string | null) {
   const coinBox = await prisma.coinBox.findFirst({ where: { id, deletedAt: null } });
   const house = await prisma.house.findFirst({ where: { id: input.houseId, deletedAt: null } });
 
   if (!coinBox || !house) throw new Error("INVALID_RELATION");
+  if (coinBox.status !== "ACTIVE") {
+    throw new BusinessRuleError("COIN_BOX_NOT_ACTIVE", "Kaleng harus berstatus aktif untuk di-assign.");
+  }
+  if (!house.active) {
+    throw new BusinessRuleError("HOUSE_NOT_ACTIVE", "Rumah harus aktif untuk menerima assignment kaleng.");
+  }
 
   return prisma.$transaction(async (tx) => {
+    const activeAssignments = await tx.coinBoxAssignment.findMany({
+      where: { coinBoxId: id, status: "ACTIVE" }
+    });
     await tx.coinBoxAssignment.updateMany({
       where: { coinBoxId: id, status: "ACTIVE" },
-      data: { status: "ENDED", endedAt: new Date() }
+      data: { status: "ENDED", unassignedAt: new Date() }
     });
 
-    return tx.coinBoxAssignment.create({
+    const assignment = await tx.coinBoxAssignment.create({
       data: {
         coinBoxId: id,
         houseId: input.houseId,
@@ -46,6 +57,21 @@ export async function assignCoinBox(id: number, input: AssignCoinBoxInput) {
       },
       include: { coinBox: true, house: true }
     });
+
+    await createAuditLog({
+      tx,
+      actorId,
+      action: "coin_box.assign",
+      entityType: "CoinBoxAssignment",
+      entityId: assignment.id,
+      ipAddress,
+      metadata: auditMetadata({
+        before: { activeAssignments },
+        after: { assignmentId: assignment.id, coinBoxId: id, houseId: input.houseId }
+      })
+    });
+
+    return assignment;
   });
 }
 

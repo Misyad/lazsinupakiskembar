@@ -1,15 +1,19 @@
 import { prisma } from "@/src/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
 
-export async function writeAuditLog(input: {
+type AuditClient = Prisma.TransactionClient | typeof prisma;
+
+export async function createAuditLog(input: {
   actorId?: number | null;
   action: string;
   entityType: string;
   entityId?: string | number | null;
   ipAddress?: string | null;
   metadata?: Prisma.InputJsonValue;
+  tx?: AuditClient;
 }) {
-  await prisma.auditLog.create({
+  const client = input.tx ?? prisma;
+  await client.auditLog.create({
     data: {
       actorId: input.actorId ?? null,
       action: input.action,
@@ -19,6 +23,22 @@ export async function writeAuditLog(input: {
       metadata: input.metadata
     }
   });
+}
+
+export const writeAuditLog = createAuditLog;
+
+export function auditMetadata(input: {
+  before?: Prisma.InputJsonValue;
+  after?: Prisma.InputJsonValue;
+  reason?: string;
+  source?: string;
+}) {
+  return {
+    before: input.before ?? {},
+    after: input.after ?? {},
+    reason: input.reason ?? "",
+    source: input.source ?? "web"
+  } satisfies Prisma.InputJsonValue;
 }
 
 export function requestIp(request: Request) {

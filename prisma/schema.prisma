@@ -29,10 +29,24 @@ enum WithdrawalStatus {
   PENDING
   VALIDATED
   REJECTED
+  VOIDED
 }
 
 enum CashTransactionType {
   INCOME
+  EXPENSE
+  ADJUSTMENT
+}
+
+enum CashTransactionStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+  VOIDED
+}
+
+enum CashTransactionReferenceType {
+  WITHDRAWAL
   EXPENSE
   ADJUSTMENT
 }
@@ -57,6 +71,8 @@ model User {
   sessions     UserSession[]
   userRoles    UserRole[]
   withdrawals  Withdrawal[]  @relation("WithdrawalCollector")
+  cashCreated  CashTransaction[] @relation("CashTransactionCreator")
+  cashValidated CashTransaction[] @relation("CashTransactionValidator")
   auditLogs    AuditLog[]
 
   @@index([status])
@@ -185,7 +201,7 @@ model CoinBoxAssignment {
   coinBoxId   Int              @map("coin_box_id")
   houseId     Int              @map("house_id")
   assignedAt  DateTime         @default(now()) @map("assigned_at")
-  endedAt     DateTime?        @map("ended_at")
+  unassignedAt DateTime?       @map("unassigned_at")
   status      AssignmentStatus @default(ACTIVE)
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
@@ -195,6 +211,7 @@ model CoinBoxAssignment {
   @@index([coinBoxId])
   @@index([houseId])
   @@index([status])
+  @@index([unassignedAt])
   @@map("coin_box_assignments")
 }
 
@@ -209,6 +226,8 @@ model Withdrawal {
   collectedAt  DateTime         @map("collected_at")
   validatedAt  DateTime?        @map("validated_at")
   rejectedAt   DateTime?        @map("rejected_at")
+  voidedAt      DateTime?        @map("voided_at")
+  voidReason    String?          @map("void_reason") @db.VarChar(500)
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
   coinBox      CoinBox          @relation(fields: [coinBoxId], references: [id])
@@ -218,6 +237,7 @@ model Withdrawal {
 
   @@index([status])
   @@index([collectedAt])
+  @@index([collectorId])
   @@index([coinBoxId])
   @@index([houseId])
   @@map("withdrawals")
@@ -238,22 +258,37 @@ model FinancialCategory {
 }
 
 model CashTransaction {
-  id           Int                 @id @default(autoincrement())
-  categoryId   Int                 @map("category_id")
-  withdrawalId Int?                @map("withdrawal_id")
-  type         CashTransactionType
-  amount       Int
-  description  String              @db.VarChar(255)
+  id            Int                          @id @default(autoincrement())
+  categoryId    Int                          @map("category_id")
+  withdrawalId  Int?                         @unique @map("withdrawal_id")
+  type          CashTransactionType
+  status        CashTransactionStatus        @default(VALIDATED)
+  referenceType CashTransactionReferenceType @default(ADJUSTMENT) @map("reference_type")
+  referenceId   Int?                         @map("reference_id")
+  amount        Int
+  description   String                       @db.VarChar(255)
+  reason        String?                      @db.VarChar(500)
+  createdById   Int?                         @map("created_by_id")
+  validatedById Int?                         @map("validated_by_id")
+  validatedAt   DateTime?                    @map("validated_at")
+  rejectedAt    DateTime?                    @map("rejected_at")
+  voidedAt      DateTime?                    @map("voided_at")
   transactionAt DateTime           @map("transaction_at")
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt @map("updated_at")
   category     FinancialCategory   @relation(fields: [categoryId], references: [id])
   withdrawal   Withdrawal?         @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
+  createdBy    User?               @relation("CashTransactionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  validatedBy  User?               @relation("CashTransactionValidator", fields: [validatedById], references: [id], onDelete: SetNull)
 
   @@index([type])
+  @@index([status])
+  @@index([validatedAt])
   @@index([transactionAt])
   @@index([categoryId])
-  @@index([withdrawalId])
+  @@index([referenceType, referenceId])
+  @@index([createdById])
+  @@index([validatedById])
   @@map("cash_transactions")
 }
 

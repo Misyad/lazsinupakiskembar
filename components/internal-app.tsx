@@ -57,7 +57,7 @@ type Withdrawal = {
   houseName: string;
   amount: number;
   collector: string;
-  status: "PENDING" | "VALIDATED" | "REJECTED";
+  status: "PENDING" | "VALIDATED" | "REJECTED" | "VOIDED";
   notes: string;
   createdAt: string;
 };
@@ -66,8 +66,20 @@ type DashboardStats = {
   activeHouses: number;
   activeBoxes: number;
   income: number;
+  expense: number;
+  adjustment: number;
   pending: number;
   balance: number;
+};
+
+type FinanceSummary = {
+  income: number;
+  expense: number;
+  adjustment: number;
+  balance: number;
+  pendingWithdrawals: number;
+  activeHouses: number;
+  activeBoxes: number;
 };
 
 type Account = { id?: number; role: Role; name: string; email: string };
@@ -207,6 +219,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
+  const [financeSummary, setFinanceSummary] = useState<FinanceSummary | null>(null);
   const [houses, setHouses] = useState(initialHouses);
   const [boxes, setBoxes] = useState(initialBoxes);
   const [withdrawals, setWithdrawals] = useState(initialWithdrawals);
@@ -226,26 +239,29 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
       setDataLoading(true);
       setDataError("");
       try {
-        const [housesResponse, boxesResponse, withdrawalsResponse] = await Promise.all([
+        const [housesResponse, boxesResponse, withdrawalsResponse, financeResponse] = await Promise.all([
           fetch("/api/houses", { cache: "no-store" }),
           fetch("/api/coin-boxes", { cache: "no-store" }),
-          fetch("/api/withdrawals", { cache: "no-store" })
+          fetch("/api/withdrawals", { cache: "no-store" }),
+          fetch("/api/finance/summary", { cache: "no-store" })
         ]);
 
-        if (!housesResponse.ok || !boxesResponse.ok || !withdrawalsResponse.ok) {
+        if (!housesResponse.ok || !boxesResponse.ok || !withdrawalsResponse.ok || !financeResponse.ok) {
           throw new Error("Gagal mengambil data server.");
         }
 
-        const [housesPayload, boxesPayload, withdrawalsPayload] = await Promise.all([
+        const [housesPayload, boxesPayload, withdrawalsPayload, financePayload] = await Promise.all([
           housesResponse.json(),
           boxesResponse.json(),
-          withdrawalsResponse.json()
+          withdrawalsResponse.json(),
+          financeResponse.json()
         ]);
 
         if (!active) return;
         setHouses(housesPayload.houses ?? []);
         setBoxes(boxesPayload.coinBoxes ?? []);
         setWithdrawals(withdrawalsPayload.withdrawals ?? []);
+        setFinanceSummary(financePayload.summary ?? null);
         const firstBox = boxesPayload.coinBoxes?.[0]?.boxNumber;
         if (firstBox) setSelectedBox(firstBox);
       } catch (error) {
@@ -270,6 +286,17 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   }
 
   const stats = useMemo(() => {
+    if (financeSummary) {
+      return {
+        activeHouses: financeSummary.activeHouses,
+        activeBoxes: financeSummary.activeBoxes,
+        income: financeSummary.income,
+        expense: financeSummary.expense,
+        adjustment: financeSummary.adjustment,
+        pending: financeSummary.pendingWithdrawals,
+        balance: financeSummary.balance
+      };
+    }
     const validated = withdrawals.filter((item) => item.status === "VALIDATED");
     const income = validated.reduce((sum, item) => sum + item.amount, 0);
     const pending = withdrawals.filter((item) => item.status === "PENDING").length;
@@ -277,10 +304,12 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
       activeHouses: houses.filter((item) => item.active).length,
       activeBoxes: boxes.filter((item) => item.status === "ACTIVE").length,
       income,
+      expense: 285000,
+      adjustment: 0,
       pending,
       balance: income - 285000
     };
-  }, [boxes, houses, withdrawals]);
+  }, [boxes, financeSummary, houses, withdrawals]);
 
   const filteredHouses = houses.filter((house) => {
     const matchesSearch = `${house.name} ${house.phone} ${house.address} ${house.boxNumber}`
@@ -341,11 +370,16 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
 
   async function updateWithdrawal(id: number, status: Withdrawal["status"]) {
     setDataError("");
-    const endpoint = status === "VALIDATED" ? "validate" : "reject";
+    const endpoint = status === "VALIDATED" ? "validate" : status === "VOIDED" ? "void" : "reject";
     const response = await fetch(`/api/withdrawals/${id}/${endpoint}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: status === "REJECTED" ? JSON.stringify({ reason: "Ditolak bendahara" }) : "{}"
+      body:
+        status === "REJECTED"
+          ? JSON.stringify({ reason: "Ditolak bendahara" })
+          : status === "VOIDED"
+            ? JSON.stringify({ reason: "Koreksi operasional bendahara" })
+            : "{}"
     });
     const payload = await response.json();
     if (!response.ok) {
@@ -353,6 +387,11 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
       return;
     }
     setWithdrawals((items) => items.map((item) => (item.id === id ? payload.withdrawal : item)));
+    const financeResponse = await fetch("/api/finance/summary", { cache: "no-store" });
+    if (financeResponse.ok) {
+      const financePayload = await financeResponse.json();
+      setFinanceSummary(financePayload.summary ?? null);
+    }
   }
 
   return (
@@ -765,8 +804,8 @@ function FinanceView({
     <div className="grid gap-6">
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard icon={Coins} label="Kas masuk tervalidasi" value={currency.format(stats.income)} />
-        <StatCard icon={WalletCards} label="Kas keluar dummy" value={currency.format(285000)} />
-        <StatCard icon={CheckCircle2} label="Saldo realtime" value={currency.format(stats.balance)} />
+        <StatCard icon={WalletCards} label="Kas keluar tervalidasi" value={currency.format(stats.expense)} />
+        <StatCard icon={CheckCircle2} label="Saldo ledger" value={currency.format(stats.balance)} />
       </div>
       <Panel title="Validasi bendahara">
         <DataTable
@@ -783,6 +822,14 @@ function FinanceView({
                 onClick={() => updateWithdrawal(item.id, "VALIDATED")}
               >
                 Validasi
+              </button>
+            ) : item.status === "VALIDATED" ? (
+              <button
+                key={item.id}
+                className="rounded-[6px] border border-red-200 px-3 py-2 text-sm font-semibold text-red-700"
+                onClick={() => updateWithdrawal(item.id, "VOIDED")}
+              >
+                Void
               </button>
             ) : (
               "-"
@@ -884,6 +931,7 @@ function StatusBadge({ status }: { status: string }) {
     VALIDATED: "bg-brand-50 text-brand-700",
     PENDING: "bg-amber-50 text-amber-700",
     REJECTED: "bg-red-50 text-red-700",
+    VOIDED: "bg-slate-100 text-slate-600",
     LOST: "bg-red-50 text-red-700",
     DAMAGED: "bg-orange-50 text-orange-700",
     INACTIVE: "bg-slate-100 text-slate-600"
@@ -901,6 +949,7 @@ function statusLabel(status: string) {
     VALIDATED: "Tervalidasi",
     PENDING: "Pending",
     REJECTED: "Ditolak",
+    VOIDED: "Void",
     LOST: "Hilang",
     DAMAGED: "Rusak",
     INACTIVE: "Nonaktif"

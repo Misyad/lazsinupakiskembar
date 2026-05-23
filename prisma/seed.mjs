@@ -15,6 +15,10 @@ const permissions = [
   ["withdrawals.create", "Input penarikan"],
   ["withdrawals.validate", "Validasi penarikan"],
   ["withdrawals.reject", "Tolak penarikan"],
+  ["withdrawals.void", "Void penarikan"],
+  ["finance.read", "Lihat ringkasan dan transaksi keuangan"],
+  ["finance.expenses.create", "Input kas keluar"],
+  ["finance.adjustments.create", "Input adjustment kas"],
   ["audit.read", "Lihat audit log"],
   ["settings.manage", "Kelola pengaturan"]
 ];
@@ -31,10 +35,22 @@ const rolePermissions = {
     "withdrawals.read",
     "withdrawals.create",
     "withdrawals.validate",
-    "withdrawals.reject"
+    "withdrawals.reject",
+    "withdrawals.void",
+    "finance.read"
   ],
-  PETUGAS: ["houses.read", "coin_boxes.read", "withdrawals.read", "withdrawals.create"],
-  BENDAHARA: ["houses.read", "coin_boxes.read", "withdrawals.read", "withdrawals.validate", "withdrawals.reject"]
+  PETUGAS: ["houses.read", "coin_boxes.read", "withdrawals.read", "withdrawals.create", "finance.read"],
+  BENDAHARA: [
+    "houses.read",
+    "coin_boxes.read",
+    "withdrawals.read",
+    "withdrawals.validate",
+    "withdrawals.reject",
+    "withdrawals.void",
+    "finance.read",
+    "finance.expenses.create",
+    "finance.adjustments.create"
+  ]
 };
 
 const roles = [
@@ -98,6 +114,11 @@ async function main() {
     where: { code: "PENYALURAN_SOSIAL" },
     update: { name: "Penyaluran Sosial", type: "EXPENSE" },
     create: { code: "PENYALURAN_SOSIAL", name: "Penyaluran Sosial", type: "EXPENSE" }
+  });
+  await prisma.financialCategory.upsert({
+    where: { code: "KOREKSI_SALDO" },
+    update: { name: "Koreksi Saldo", type: "ADJUSTMENT" },
+    create: { code: "KOREKSI_SALDO", name: "Koreksi Saldo", type: "ADJUSTMENT" }
   });
 
   const passwordHash = await bcrypt.hash("Admin123!", 12);
@@ -195,9 +216,15 @@ async function main() {
         categoryId: incomeCategory.id,
         withdrawalId: withdrawal.id,
         type: "INCOME",
+        status: "VALIDATED",
+        referenceType: "WITHDRAWAL",
+        referenceId: withdrawal.id,
         amount: withdrawal.amount,
         description: "Pemasukan KOIN NU tervalidasi",
-        transactionAt: withdrawal.validatedAt ?? new Date()
+        transactionAt: withdrawal.validatedAt ?? new Date(),
+        validatedAt: withdrawal.validatedAt ?? new Date(),
+        createdById: admin.id,
+        validatedById: admin.id
       }
     });
   }

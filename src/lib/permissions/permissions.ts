@@ -10,6 +10,10 @@ export const permissions = {
   withdrawalsCreate: "withdrawals.create",
   withdrawalsValidate: "withdrawals.validate",
   withdrawalsReject: "withdrawals.reject",
+  withdrawalsVoid: "withdrawals.void",
+  financeRead: "finance.read",
+  financeExpensesCreate: "finance.expenses.create",
+  financeAdjustmentsCreate: "finance.adjustments.create",
   auditRead: "audit.read",
   settingsManage: "settings.manage"
 } as const;

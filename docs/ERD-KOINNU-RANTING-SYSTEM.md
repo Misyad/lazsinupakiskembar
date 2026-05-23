@@ -142,7 +142,7 @@ id PK
 coin_box_id FK -> coin_boxes.id
 house_id FK -> houses.id
 assigned_at
-ended_at NULL
+unassigned_at NULL
 status ENUM(ACTIVE, ENDED)
 created_at
 updated_at
@@ -158,7 +158,7 @@ Catatan:
 
 - `coin_boxes` tidak menyimpan `house_id` langsung.
 - Assignment aktif ditentukan dari `coin_box_assignments.status = ACTIVE`.
-- Saat kaleng dipindahkan, assignment lama diakhiri dengan `status = ENDED` dan `ended_at`.
+- Saat kaleng dipindahkan, assignment lama diakhiri dengan `status = ENDED` dan `unassigned_at`.
 
 ## Penarikan
 
@@ -170,11 +170,13 @@ coin_box_id FK -> coin_boxes.id
 house_id FK -> houses.id
 collector_id FK -> users.id
 amount
-status ENUM(PENDING, VALIDATED, REJECTED)
+status ENUM(PENDING, VALIDATED, REJECTED, VOIDED)
 notes NULL
 collected_at
 validated_at NULL
 rejected_at NULL
+voided_at NULL
+void_reason NULL
 created_at
 updated_at
 ```
@@ -193,13 +195,14 @@ Status flow:
 ```text
 PENDING -> VALIDATED
 PENDING -> REJECTED
+VALIDATED -> VOIDED
 ```
 
 Catatan:
 
 - Transaksi penarikan tidak di-hard-delete.
 - Validasi penarikan membuat transaksi kas `INCOME`.
-- Actor validasi/reject belum disimpan sebagai kolom khusus; audit actor dicatat di `audit_logs`.
+- Actor validasi/reject/void dicatat di `audit_logs`.
 
 ## Keuangan
 
@@ -220,8 +223,17 @@ id PK
 category_id FK -> financial_categories.id
 withdrawal_id FK -> withdrawals.id NULL
 type ENUM(INCOME, EXPENSE, ADJUSTMENT)
+status ENUM(PENDING, VALIDATED, REJECTED, VOIDED)
+reference_type ENUM(WITHDRAWAL, EXPENSE, ADJUSTMENT)
+reference_id NULL
 amount
 description
+reason NULL
+created_by_id FK -> users.id NULL
+validated_by_id FK -> users.id NULL
+validated_at NULL
+rejected_at NULL
+voided_at NULL
 transaction_at
 created_at
 updated_at
@@ -232,6 +244,8 @@ Relasi:
 ```text
 financial_categories 1 -- * cash_transactions
 withdrawals 1 -- * cash_transactions
+users 1 -- * cash_transactions(created_by)
+users 1 -- * cash_transactions(validated_by)
 ```
 
 Catatan:
@@ -242,6 +256,8 @@ Catatan:
 ```text
 SUM(INCOME) - SUM(EXPENSE) + SUM(ADJUSTMENT)
 ```
+
+Hanya `cash_transactions.status = VALIDATED` yang masuk saldo resmi.
 
 ## Laporan Publik dan Attachment
 
@@ -311,6 +327,10 @@ house.delete
 withdrawal.create
 withdrawal.validate
 withdrawal.reject
+withdrawal.void
+coin_box.assign
+finance.expense.create
+finance.adjustment.create
 ```
 
 Catatan:
@@ -340,6 +360,8 @@ erDiagram
 
   FINANCIAL_CATEGORIES ||--o{ CASH_TRANSACTIONS : classifies
   WITHDRAWALS ||--o{ CASH_TRANSACTIONS : posts
+  USERS ||--o{ CASH_TRANSACTIONS : creates
+  USERS ||--o{ CASH_TRANSACTIONS : validates
 
   PUBLIC_REPORTS ||--o{ ATTACHMENTS : includes
   USERS ||--o{ AUDIT_LOGS : actor
@@ -370,9 +392,11 @@ coin_boxes.status INDEX
 coin_box_assignments.coin_box_id INDEX
 coin_box_assignments.house_id INDEX
 coin_box_assignments.status INDEX
+coin_box_assignments.unassigned_at INDEX
 
 withdrawals.status INDEX
 withdrawals.collected_at INDEX
+withdrawals.collector_id INDEX
 withdrawals.coin_box_id INDEX
 withdrawals.house_id INDEX
 
@@ -380,9 +404,12 @@ financial_categories.code UNIQUE
 financial_categories.type INDEX
 
 cash_transactions.type INDEX
+cash_transactions.status INDEX
+cash_transactions.validated_at INDEX
 cash_transactions.transaction_at INDEX
 cash_transactions.category_id INDEX
 cash_transactions.withdrawal_id INDEX
+cash_transactions(reference_type, reference_id) INDEX
 
 public_reports.period UNIQUE
 public_reports.status INDEX
@@ -404,7 +431,6 @@ Field dan tabel berikut pernah muncul di draft konseptual atau PRD, tetapi belum
 - `houses.created_by`
 - `withdrawals.validated_by`
 - `withdrawals.rejected_by`
-- `withdrawals.voided_by`
 - `withdrawals.rejection_reason`
 - attachment polymorphic ke entity selain public report
 - WhatsApp logs

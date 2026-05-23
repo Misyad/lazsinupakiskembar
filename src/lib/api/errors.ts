@@ -1,5 +1,15 @@
 import { ZodError } from "zod";
 
+export class BusinessRuleError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status = 422
+  ) {
+    super(message);
+  }
+}
+
 export function jsonError(error: unknown) {
   if (error instanceof ZodError) {
     return Response.json(
@@ -13,6 +23,9 @@ export function jsonError(error: unknown) {
   }
 
   if (error instanceof Error) {
+    if (error instanceof BusinessRuleError) {
+      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     if (error.message === "NOT_FOUND") {
       return Response.json({ error: "Data tidak ditemukan." }, { status: 404 });
     }
