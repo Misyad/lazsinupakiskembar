@@ -873,15 +873,15 @@ Untuk fase MVP berikutnya, boleh tetap memakai single-page dashboard selama rute
 | Web framework | Next.js App Router |
 | Bahasa | TypeScript |
 | Styling | Tailwind CSS |
-| Database | MySQL atau PostgreSQL |
-| ORM/query | Prisma atau query layer terstruktur |
+| Database | Supabase PostgreSQL |
+| ORM/query | Prisma |
 | Auth | Credential login dengan session |
 | Export | PDF dan XLSX server-side |
 | Storage | Local volume dulu, R2/S3 saat perlu |
 | Deployment | Docker, Docker Compose, Jenkins |
 | Tunnel | Cloudflare Tunnel |
 
-Catatan database: server saat ini sudah memiliki MySQL container. Jika ingin cepat produksi di server yang ada, MySQL adalah pilihan paling praktis. PostgreSQL boleh dipakai jika ada alasan teknis kuat dan disiapkan deployment-nya.
+Catatan database: keputusan terbaru menggunakan Supabase PostgreSQL sebagai database utama. Prisma tetap menjadi query layer dan `prisma/schema.prisma` menjadi sumber kebenaran schema. Deployment harus menyediakan `DATABASE_URL` Supabase melalui secret/environment server.
 
 ## 17. CI/CD dan Deployment
 
@@ -955,7 +955,7 @@ PORT=3000
 Saat sudah memakai database:
 
 ```text
-DATABASE_URL=
+DATABASE_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
 SESSION_SECRET=
 APP_URL=
 WHATSAPP_PROVIDER=
@@ -1135,4 +1135,3 @@ Phase backend pertama dianggap selesai jika:
 - UI tidak lagi bergantung pada dummy state untuk data utama.
 - Jenkins build dan deploy sukses.
 - Domain production bisa dibuka.
-
