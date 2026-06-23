@@ -8,7 +8,7 @@ export default async function PublicReportPeriodPage({ params }: { params: Promi
     <>
       <PublicSummaryPage
         title={`Laporan Publik ${period}`}
-        description="Halaman laporan periodik publik berbasis dummy data untuk MVP transparansi KOIN NU."
+        description="Halaman laporan periodik publik KOIN NU Ranting Pakiskembar berdasarkan data keuangan tervalidasi."
       />
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <PublicReportTable />

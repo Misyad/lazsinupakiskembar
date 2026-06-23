@@ -228,6 +228,31 @@ async function main() {
       }
     });
   }
+
+  // Public landing content (idempotent by title).
+  const seededPrograms = [
+    ["Santunan Dhuafa", 18500000, "Berjalan", 1],
+    ["Bantuan Kesehatan Warga", 12750000, "Penyaluran", 2],
+    ["Dukungan Pendidikan Santri", 9300000, "Monitoring", 3]
+  ];
+  for (const [title, amount, status, sortOrder] of seededPrograms) {
+    const existing = await prisma.program.findFirst({ where: { title, deletedAt: null } });
+    if (!existing) {
+      await prisma.program.create({ data: { title, amount, status, sortOrder } });
+    }
+  }
+
+  const seededDocs = [
+    ["Distribusi bantuan pangan", "Dokumentasi kegiatan LAZISNU Pakiskembar", "emerald", 1],
+    ["Musyawarah laporan ranting", "Dokumentasi kegiatan LAZISNU Pakiskembar", "amber", 2],
+    ["Penyerahan santunan warga", "Dokumentasi kegiatan LAZISNU Pakiskembar", "sky", 3]
+  ];
+  for (const [title, description, accent, sortOrder] of seededDocs) {
+    const existing = await prisma.documentation.findFirst({ where: { title, deletedAt: null } });
+    if (!existing) {
+      await prisma.documentation.create({ data: { title, description, accent, sortOrder } });
+    }
+  }
 }
 
 main()

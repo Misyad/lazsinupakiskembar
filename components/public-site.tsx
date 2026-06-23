@@ -1,33 +1,29 @@
 import Link from "next/link";
 import { ArrowRight, Building2, CalendarDays, Coins, FileText, HandCoins, Landmark, MapPin, Phone, UsersRound } from "lucide-react";
+import {
+  getDocumentation,
+  getIncomeTrend,
+  getPrograms,
+  getPublicReports,
+  getPublicStats,
+  type PublicStat
+} from "@/src/services/public/service";
 
-export const publicStats = [
-  { label: "Total Dana Terkumpul", value: "Rp 128.450.000", icon: Coins },
-  { label: "Total Dana Tersalurkan", value: "Rp 96.200.000", icon: HandCoins },
-  { label: "Saldo Aktif", value: "Rp 32.250.000", icon: Landmark },
-  { label: "Jumlah Rumah Donatur", value: "1.284", icon: UsersRound }
-];
+const STAT_ICONS = {
+  coins: Coins,
+  handCoins: HandCoins,
+  landmark: Landmark,
+  users: UsersRound
+} as const;
 
-export const incomeTrend = [
-  { month: "Jan", value: 42 },
-  { month: "Feb", value: 58 },
-  { month: "Mar", value: 51 },
-  { month: "Apr", value: 74 },
-  { month: "Mei", value: 86 },
-  { month: "Jun", value: 69 }
-];
-
-export const programs = [
-  { title: "Santunan Dhuafa", amount: "Rp 18.500.000", status: "Berjalan" },
-  { title: "Bantuan Kesehatan Warga", amount: "Rp 12.750.000", status: "Penyaluran" },
-  { title: "Dukungan Pendidikan Santri", amount: "Rp 9.300.000", status: "Monitoring" }
-];
-
-export const reports = [
-  ["Mei 2026", "Pemasukan rutin KOIN NU", "Rp 21.450.000", "Terverifikasi"],
-  ["April 2026", "Penyaluran sosial ranting", "Rp 16.800.000", "Terverifikasi"],
-  ["Maret 2026", "Saldo kas publik", "Rp 27.125.000", "Terverifikasi"]
-];
+// Static accent -> Tailwind classes (dynamic class strings can't be purged safely).
+const DOC_ACCENTS: Record<string, string> = {
+  emerald: "bg-emerald-100",
+  amber: "bg-amber-100",
+  sky: "bg-sky-100",
+  rose: "bg-rose-100",
+  violet: "bg-violet-100"
+};
 
 export function PublicHeader() {
   return (
@@ -78,7 +74,8 @@ export function PublicFooter() {
   );
 }
 
-export function PublicSummaryPage({ title, description }: { title: string; description: string }) {
+export async function PublicSummaryPage({ title, description }: { title: string; description: string }) {
+  const stats = await getPublicStats();
   return (
     <main className="bg-white">
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -87,7 +84,7 @@ export function PublicSummaryPage({ title, description }: { title: string; descr
         <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">{description}</p>
       </section>
       <section className="mx-auto grid max-w-7xl gap-4 px-4 pb-16 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
-        {publicStats.map((item) => (
+        {stats.map((item) => (
           <PublicStatCard key={item.label} {...item} />
         ))}
       </section>
@@ -95,7 +92,8 @@ export function PublicSummaryPage({ title, description }: { title: string; descr
   );
 }
 
-export function PublicStatCard({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Coins }) {
+export function PublicStatCard({ label, value, icon }: PublicStat) {
+  const Icon = STAT_ICONS[icon];
   return (
     <div className="rounded-[8px] border border-slate-200 bg-white p-5 shadow-soft">
       <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-[8px] bg-emerald-50 text-brand-700">
@@ -107,7 +105,42 @@ export function PublicStatCard({ label, value, icon: Icon }: { label: string; va
   );
 }
 
-export function IncomeChart() {
+/** 4 statistic cards, fetched from the ledger. */
+export async function PublicStatsGrid() {
+  const stats = await getPublicStats();
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {stats.map((item) => (
+        <PublicStatCard key={item.label} {...item} />
+      ))}
+    </div>
+  );
+}
+
+/** Hero summary box (top 3 figures). */
+export async function HeroSummaryCard() {
+  const stats = await getPublicStats();
+  return (
+    <div className="rounded-[8px] border border-slate-200 bg-white p-5 shadow-soft">
+      <p className="text-sm font-semibold text-brand-700">Ringkasan Terkini</p>
+      <div className="mt-5 grid gap-4">
+        {stats.slice(0, 3).map((item) => (
+          <div key={item.label} className="flex items-center justify-between rounded-[8px] bg-slate-50 p-4">
+            <span className="text-sm text-slate-600">{item.label}</span>
+            <span className="font-semibold text-ink">{item.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 rounded-[8px] bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+        Laporan publik menampilkan agregat dana dan program. Data pribadi donatur
+        tetap berada di area internal pengurus.
+      </div>
+    </div>
+  );
+}
+
+export async function IncomeChart() {
+  const data = await getIncomeTrend();
   return (
     <div className="rounded-[8px] border border-slate-200 bg-white p-5 shadow-soft">
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -118,8 +151,8 @@ export function IncomeChart() {
         <CalendarDays className="text-amber-500" size={24} />
       </div>
       <div className="flex h-72 items-end gap-3">
-        {incomeTrend.map((item) => (
-          <div key={item.month} className="flex flex-1 flex-col items-center gap-3">
+        {data.map((item) => (
+          <div key={item.month} className="flex flex-1 flex-col items-center gap-3" title={item.amount}>
             <div className="w-full rounded-t-[8px] bg-gradient-to-t from-brand-700 to-emerald-400" style={{ height: `${item.value}%` }} />
             <span className="text-xs font-medium text-slate-500">{item.month}</span>
           </div>
@@ -129,7 +162,38 @@ export function IncomeChart() {
   );
 }
 
-export function PublicReportTable() {
+/** "Program Berjalan" panel. */
+export async function ProgramsPanel() {
+  const programs = await getPrograms();
+  return (
+    <div className="rounded-[8px] border border-slate-200 bg-white p-5 shadow-soft">
+      <p className="text-sm font-semibold text-brand-700">Program Berjalan</p>
+      <h2 className="mt-1 text-2xl font-semibold text-ink">Penyaluran sosial aktif</h2>
+      <div className="mt-6 grid gap-3">
+        {programs.length === 0 ? (
+          <p className="text-sm text-slate-500">Belum ada program aktif.</p>
+        ) : (
+          programs.map((program) => (
+            <article key={program.title} className="rounded-[8px] border border-slate-200 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold text-ink">{program.title}</h3>
+                  <p className="mt-1 text-sm text-slate-500">Alokasi berjalan: {program.amount}</p>
+                </div>
+                <span className="rounded-[6px] bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+                  {program.status}
+                </span>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+export async function PublicReportTable() {
+  const rows = await getPublicReports();
   return (
     <div className="overflow-x-auto rounded-[8px] border border-slate-200 bg-white shadow-soft">
       <table className="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -141,11 +205,12 @@ export function PublicReportTable() {
           </tr>
         </thead>
         <tbody>
-          {reports.map((row) => (
-            <tr key={row[0]} className="border-t border-slate-100">
-              {row.map((cell, index) => (
-                <td key={cell} className={`px-4 py-4 ${index === 3 ? "font-semibold text-brand-700" : "text-slate-700"}`}>{cell}</td>
-              ))}
+          {rows.map((row) => (
+            <tr key={row.period} className="border-t border-slate-100">
+              <td className="px-4 py-4 text-slate-700">{row.period}</td>
+              <td className="px-4 py-4 text-slate-700">{row.description}</td>
+              <td className="px-4 py-4 text-slate-700">{row.amount}</td>
+              <td className="px-4 py-4 font-semibold text-brand-700">{row.status}</td>
             </tr>
           ))}
         </tbody>
@@ -154,20 +219,25 @@ export function PublicReportTable() {
   );
 }
 
-export function DocumentationGrid() {
+export async function DocumentationGrid() {
+  const items = await getDocumentation();
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      {["Distribusi bantuan pangan", "Musyawarah laporan ranting", "Penyerahan santunan warga"].map((item, index) => (
-        <div key={item} className="overflow-hidden rounded-[8px] border border-slate-200 bg-white shadow-soft">
-          <div className={`h-44 ${index === 0 ? "bg-emerald-100" : index === 1 ? "bg-amber-100" : "bg-sky-100"} p-5`}>
-            <FileText className="text-slate-700" size={32} />
+      {items.length === 0 ? (
+        <p className="text-sm text-slate-500">Belum ada dokumentasi.</p>
+      ) : (
+        items.map((item) => (
+          <div key={item.title} className="overflow-hidden rounded-[8px] border border-slate-200 bg-white shadow-soft">
+            <div className={`h-44 ${DOC_ACCENTS[item.accent] ?? DOC_ACCENTS.emerald} p-5`}>
+              <FileText className="text-slate-700" size={32} />
+            </div>
+            <div className="p-4">
+              <p className="font-semibold text-ink">{item.title}</p>
+              <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+            </div>
           </div>
-          <div className="p-4">
-            <p className="font-semibold text-ink">{item}</p>
-            <p className="mt-1 text-sm text-slate-500">Dokumentasi kegiatan LAZISNU Pakiskembar</p>
-          </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }

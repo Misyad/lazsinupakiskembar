@@ -10,6 +10,7 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   QrCode,
   Search,
@@ -19,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import { ReportsView } from "./reports-view";
+import { ContentView } from "./content-view";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -205,6 +207,7 @@ const navigation: NavItem[] = [
   { key: "withdrawals", href: "/withdrawals", label: "Penarikan", icon: QrCode, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS", "BENDAHARA"] },
   { key: "finance", href: "/finance", label: "Keuangan", icon: WalletCards, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
   { key: "reports", href: "/reports", label: "Laporan", icon: FileText, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
+  { key: "content", href: "/content", label: "Konten Publik", icon: Megaphone, roles: ["SUPER_ADMIN"] },
   { key: "settings", href: "/settings", label: "Pengaturan", icon: Settings, roles: ["SUPER_ADMIN"] },
   { key: "audit-logs", href: "/audit-logs", label: "Audit Logs", icon: ClipboardList, roles: ["SUPER_ADMIN"] }
 ];
@@ -222,6 +225,7 @@ export type InternalPage =
   | "withdrawals"
   | "finance"
   | "reports"
+  | "content"
   | "settings"
   | "audit-logs";
 
@@ -540,6 +544,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
             <FinanceView stats={stats} withdrawals={withdrawals} updateWithdrawal={updateWithdrawal} />
           )}
           {initialPage === "reports" && <ReportsView stats={stats} withdrawals={withdrawals} />}
+          {initialPage === "content" && <ContentView />}
           {initialPage === "settings" && <SettingsView />}
           {initialPage === "audit-logs" && <AuditLogsView auditLogs={auditLogs} />}
         </div>
@@ -556,6 +561,7 @@ function pageTitle(page: string) {
     withdrawals: "Penarikan Koin",
     finance: "Keuangan",
     reports: "Laporan",
+    content: "Konten Publik",
     settings: "Pengaturan",
     "audit-logs": "Audit Logs"
   };

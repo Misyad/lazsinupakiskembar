@@ -338,3 +338,33 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+model Program {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(160)
+  amount      Int      @default(0)
+  status      String   @default("Berjalan") @db.VarChar(40)
+  sortOrder   Int      @default(0) @map("sort_order")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  @@index([active])
+  @@map("programs")
+}
+
+model Documentation {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(160)
+  description String   @db.VarChar(255)
+  accent      String   @default("emerald") @db.VarChar(20)
+  sortOrder   Int      @default(0) @map("sort_order")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  @@index([active])
+  @@map("documentation")
+}
