@@ -228,9 +228,14 @@ export async function DocumentationGrid() {
       ) : (
         items.map((item) => (
           <div key={item.title} className="overflow-hidden rounded-[8px] border border-slate-200 bg-white shadow-soft">
-            <div className={`h-44 ${DOC_ACCENTS[item.accent] ?? DOC_ACCENTS.emerald} p-5`}>
-              <FileText className="text-slate-700" size={32} />
-            </div>
+            {item.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={item.imageUrl} alt={item.title} className="h-44 w-full object-cover" />
+            ) : (
+              <div className={`h-44 ${DOC_ACCENTS[item.accent] ?? DOC_ACCENTS.emerald} p-5`}>
+                <FileText className="text-slate-700" size={32} />
+              </div>
+            )}
             <div className="p-4">
               <p className="font-semibold text-ink">{item.title}</p>
               <p className="mt-1 text-sm text-slate-500">{item.description}</p>

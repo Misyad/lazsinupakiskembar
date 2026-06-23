@@ -143,12 +143,17 @@ export async function getPrograms(): Promise<ProgramItem[]> {
   return rows.map((p) => ({ title: p.title, amount: rupiah(p.amount), status: p.status }));
 }
 
-export type DocItem = { title: string; description: string; accent: string };
+export type DocItem = { title: string; description: string; accent: string; imageUrl: string | null };
 
 export async function getDocumentation(): Promise<DocItem[]> {
   const rows = await prisma.documentation.findMany({
     where: { active: true, deletedAt: null },
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }]
   });
-  return rows.map((d) => ({ title: d.title, description: d.description, accent: d.accent }));
+  return rows.map((d) => ({
+    title: d.title,
+    description: d.description,
+    accent: d.accent,
+    imageUrl: d.imageId ? `/api/media/${d.imageId}` : null
+  }));
 }

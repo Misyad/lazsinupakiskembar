@@ -359,12 +359,25 @@ model Documentation {
   title       String   @db.VarChar(160)
   description String   @db.VarChar(255)
   accent      String   @default("emerald") @db.VarChar(20)
+  imageId     Int?     @map("image_id")
   sortOrder   Int      @default(0) @map("sort_order")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
+  image       MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
 
   @@index([active])
   @@map("documentation")
+}
+
+model MediaAsset {
+  id            Int             @id @default(autoincrement())
+  mimeType      String          @map("mime_type") @db.VarChar(120)
+  sizeBytes     Int             @map("size_bytes")
+  data          Bytes
+  createdAt     DateTime        @default(now()) @map("created_at")
+  documentation Documentation[]
+
+  @@map("media_assets")
 }

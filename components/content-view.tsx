@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
 
 type Program = {
   id: number;
@@ -17,15 +17,18 @@ type Documentation = {
   title: string;
   description: string;
   accent: string;
+  imageId: number | null;
   sortOrder: number;
   active: boolean;
 };
+
+type DocForm = { title: string; description: string; accent: string; imageId: number | null; sortOrder: number };
 
 const ACCENTS = ["emerald", "amber", "sky", "rose", "violet"];
 const rupiah = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(n);
 
 const emptyProgram = { title: "", amount: 0, status: "Berjalan", sortOrder: 0 };
-const emptyDoc = { title: "", description: "", accent: "emerald", sortOrder: 0 };
+const emptyDoc: DocForm = { title: "", description: "", accent: "emerald", imageId: null, sortOrder: 0 };
 
 export function ContentView() {
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -36,8 +39,9 @@ export function ContentView() {
   const [programForm, setProgramForm] = useState({ ...emptyProgram });
   const [programEditId, setProgramEditId] = useState<number | null>(null);
 
-  const [docForm, setDocForm] = useState({ ...emptyDoc });
+  const [docForm, setDocForm] = useState<DocForm>({ ...emptyDoc });
   const [docEditId, setDocEditId] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -136,6 +140,24 @@ export function ContentView() {
 
   /* ---------------------------- Documentation --------------------------- */
 
+  async function uploadDocImage(file: File) {
+    setError("");
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/media", { method: "POST", body });
+      const payload = await res.json();
+      if (!res.ok) {
+        setError(payload.error ?? "Gagal mengunggah foto.");
+        return;
+      }
+      setDocForm((f) => ({ ...f, imageId: payload.id }));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function submitDoc() {
     if (!docForm.title.trim() || !docForm.description.trim()) {
       setError("Judul dan deskripsi dokumentasi wajib diisi.");
@@ -150,6 +172,7 @@ export function ContentView() {
         title: docForm.title.trim(),
         description: docForm.description.trim(),
         accent: docForm.accent,
+        imageId: docForm.imageId,
         sortOrder: Number(docForm.sortOrder) || 0
       })
     });
@@ -199,7 +222,7 @@ export function ContentView() {
 
   function editDoc(d: Documentation) {
     setDocEditId(d.id);
-    setDocForm({ title: d.title, description: d.description, accent: d.accent, sortOrder: d.sortOrder });
+    setDocForm({ title: d.title, description: d.description, accent: d.accent, imageId: d.imageId ?? null, sortOrder: d.sortOrder });
   }
 
   const inputClass =
@@ -378,6 +401,44 @@ export function ContentView() {
           </div>
         </div>
 
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[8px] bg-paper p-4">
+          <span className="text-sm font-medium text-slate-600">Foto:</span>
+          {docForm.imageId ? (
+            <span className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/media/${docForm.imageId}`}
+                alt="preview"
+                className="h-14 w-20 rounded-[6px] border border-slate-200 object-cover"
+              />
+              <button
+                className="rounded-[8px] border border-slate-200 px-2 py-1 text-sm text-red-600 hover:border-red-200"
+                onClick={() => setDocForm((f) => ({ ...f, imageId: null }))}
+              >
+                Hapus foto
+              </button>
+            </span>
+          ) : (
+            <span className="text-sm text-slate-400">belum ada</span>
+          )}
+          <label className="inline-flex cursor-pointer items-center gap-1 rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+            <ImagePlus size={15} />
+            {uploading ? "Mengunggah..." : docForm.imageId ? "Ganti foto" : "Unggah foto"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadDocImage(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <span className="text-xs text-slate-400">PNG/JPG/WEBP/GIF, maks 2 MB</span>
+        </div>
+
         <div className="grid gap-2">
           {docs.length === 0 ? (
             <p className="text-sm text-slate-500">Belum ada dokumentasi.</p>
@@ -387,16 +448,26 @@ export function ContentView() {
                 key={d.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-slate-200 p-3"
               >
-                <div className="min-w-0">
-                  <p className="font-medium text-ink">
-                    {d.title}{" "}
-                    {!d.active ? (
-                      <span className="ml-1 rounded-[6px] bg-slate-100 px-2 py-0.5 text-xs text-slate-500">nonaktif</span>
-                    ) : null}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {d.description} &middot; {d.accent} &middot; urutan {d.sortOrder}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  {d.imageId ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/media/${d.imageId}`}
+                      alt={d.title}
+                      className="h-12 w-16 shrink-0 rounded-[6px] border border-slate-200 object-cover"
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink">
+                      {d.title}{" "}
+                      {!d.active ? (
+                        <span className="ml-1 rounded-[6px] bg-slate-100 px-2 py-0.5 text-xs text-slate-500">nonaktif</span>
+                      ) : null}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {d.description} &middot; {d.accent} &middot; urutan {d.sortOrder}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <IconBtn label="Edit" onClick={() => editDoc(d)}>

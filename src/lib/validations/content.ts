@@ -16,6 +16,7 @@ export const createDocumentationSchema = z.object({
   title: z.string().trim().min(3).max(160),
   description: z.string().trim().min(3).max(255),
   accent: z.enum(DOC_ACCENTS).default("emerald"),
+  imageId: z.coerce.number().int().positive().nullable().optional(),
   sortOrder: z.coerce.number().int().min(0).default(0),
   active: z.boolean().optional()
 });

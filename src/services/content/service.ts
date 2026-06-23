@@ -79,6 +79,7 @@ export async function createDocumentation(input: CreateDocumentationInput) {
       title: input.title,
       description: input.description,
       accent: input.accent,
+      imageId: input.imageId ?? null,
       sortOrder: input.sortOrder,
       active: input.active ?? true
     }
@@ -95,6 +96,7 @@ export async function updateDocumentation(id: number, input: UpdateDocumentation
       title: input.title,
       description: input.description,
       accent: input.accent,
+      imageId: input.imageId,
       sortOrder: input.sortOrder,
       active: input.active
     }
@@ -117,6 +119,7 @@ export function serializeDocumentation(doc: Awaited<ReturnType<typeof listDocume
     title: doc.title,
     description: doc.description,
     accent: doc.accent,
+    imageId: doc.imageId,
     sortOrder: doc.sortOrder,
     active: doc.active
   };
