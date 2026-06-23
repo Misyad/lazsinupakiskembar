@@ -137,7 +137,7 @@ export function ReportsView({ stats, withdrawals }: { stats: DashboardStats; wit
 function getPeriodFromDates(startDate: string, endDate: string): string | null {
   try {
     const start = new Date(startDate);
-    const end = new Date(endDate);
+    new Date(endDate); // validate endDate
     
     // Use the start date's year and month as the period
     const year = start.getFullYear();

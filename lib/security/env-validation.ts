@@ -15,11 +15,11 @@ const errors: EnvValidationError[] = []
 /**
  * Validate required environment variable exists
  */
-function required(name: string, value: string | undefined): string | null {
-  if (!value || value.trim() === '') {
+function _required(name: string, value: string | undefined): string | null {
+  if (!value || value.trim() === "") {
     errors.push({
       variable: name,
-      message: `${name} is required but not set`
+      message: `${name} is not set or empty`,
     })
     return null
   }
@@ -27,7 +27,7 @@ function required(name: string, value: string | undefined): string | null {
 }
 
 /**
- * Validate DATABASE_URL format
+ * Validate optional environment variable with default
  */
 function validateDatabaseUrl(url: string | undefined): void {
   if (!url) {

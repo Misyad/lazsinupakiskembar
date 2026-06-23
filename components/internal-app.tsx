@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ClipboardList,
   Coins,
-  Download,
   FileText,
   Home,
   LayoutDashboard,
@@ -573,7 +572,7 @@ function roleLabel(role: Role) {
   return labels[role];
 }
 
-function Metric({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "light" }) {
+function _Metric({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "light" }) {
   return (
     <div className={`rounded-[8px] border p-4 ${tone === "light" ? "border-white/20 bg-white/10" : "border-slate-200 bg-white"}`}>
       <p className={`text-xs ${tone === "light" ? "text-brand-50" : "text-slate-500"}`}>{label}</p>
