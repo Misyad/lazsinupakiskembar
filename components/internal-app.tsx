@@ -84,6 +84,18 @@ type FinanceSummary = {
 
 type Account = { id?: number; role: Role; name: string; email: string };
 
+
+type AuditLogEntry = {
+  id: string;
+  actorId: number | null;
+  actorName: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  ipAddress: string | null;
+  metadata: unknown;
+  createdAt: string;
+};
 const accounts: Account[] = [
   { role: "SUPER_ADMIN", name: "Admin Pusat", email: "superadmin@koinnu.local" },
   { role: "ADMIN_RANTING", name: "Admin Ranting", email: "admin@ranting.local" },
@@ -224,6 +236,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   const [boxes, setBoxes] = useState(initialBoxes);
   const [withdrawals, setWithdrawals] = useState(initialWithdrawals);
   const [searchTerm, setSearchTerm] = useState("");
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [rtFilter, setRtFilter] = useState("Semua");
   const [newHouseName, setNewHouseName] = useState("");
   const [selectedBox, setSelectedBox] = useState(initialBoxes[0].boxNumber);
@@ -264,6 +277,13 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
         setFinanceSummary(financePayload.summary ?? null);
         const firstBox = boxesPayload.coinBoxes?.[0]?.boxNumber;
         if (firstBox) setSelectedBox(firstBox);
+        if (initialUser.role === "SUPER_ADMIN") {
+          const auditResponse = await fetch("/api/audit-logs?limit=100", { cache: "no-store" });
+          if (auditResponse.ok) {
+            const auditPayload = await auditResponse.json();
+            if (active) setAuditLogs(auditPayload.auditLogs ?? []);
+          }
+        }
       } catch (error) {
         if (active) {
           setDataError(error instanceof Error ? error.message : "Gagal mengambil data server.");
@@ -521,7 +541,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
           )}
           {initialPage === "reports" && <ReportsView stats={stats} withdrawals={withdrawals} />}
           {initialPage === "settings" && <SettingsView />}
-          {initialPage === "audit-logs" && <AuditLogsView account={account} withdrawals={withdrawals} />}
+          {initialPage === "audit-logs" && <AuditLogsView auditLogs={auditLogs} />}
         </div>
       </section>
     </main>
@@ -681,6 +701,27 @@ function HousesView(props: {
 }
 
 function BoxesView({ boxes, houses }: { boxes: CoinBox[]; houses: House[] }) {
+  const [qrUrls, setQrUrls] = useState<Record<number, string>>({});
+  const [qrLoading, setQrLoading] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    boxes.forEach(async (box) => {
+      if (qrUrls[box.id]) return;
+
+      setQrLoading((prev) => ({ ...prev, [box.id]: true }));
+      try {
+        const res = await fetch(`/api/coin-boxes/` + box.id, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setQrUrls((prev) => ({ ...prev, [box.id]: data.qrDataUrl }));
+        }
+      } catch {
+      } finally {
+        setQrLoading((prev) => ({ ...prev, [box.id]: false }));
+      }
+    });
+  }, [boxes]);
+
   return (
     <Panel title="Tracking kaleng KOIN NU">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -696,7 +737,13 @@ function BoxesView({ boxes, houses }: { boxes: CoinBox[]; houses: House[] }) {
                 <StatusBadge status={box.status} />
               </div>
               <div className="mt-4 flex aspect-square items-center justify-center rounded-[8px] border border-dashed border-slate-300 bg-paper">
-                <QrCode size={72} className="text-brand-700" />
+                {qrUrls[box.id] ? (
+                  <img src={qrUrls[box.id]} alt={`QR ` + box.boxNumber} className="h-full w-full object-contain p-2" />
+                ) : qrLoading[box.id] ? (
+                  <div className="text-xs text-slate-400">Memuat...</div>
+                ) : (
+                  <QrCode size={72} className="text-brand-700" />
+                )}
               </div>
               <p className="mt-3 text-sm text-slate-500">Distribusi: {box.distributedAt}</p>
             </div>
@@ -722,21 +769,65 @@ function WithdrawalsView(props: {
   updateWithdrawal: (id: number, status: Withdrawal["status"]) => void;
 }) {
   const canValidate = ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"].includes(props.account.role);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanError, setScanError] = useState("");
+  useEffect(() => {
+    if (!scannerOpen) return;
+    setScanError("");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let scanner: any | null = null;
+    const init = async () => {
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode");
+        scanner = new Html5Qrcode("qr-scanner-container");
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText: string) => {
+            try {
+              const payload = JSON.parse(decodedText);
+              if (payload.type === "koinnu_box" && payload.boxNumber) {
+                props.setSelectedBox(payload.boxNumber);
+                setScannerOpen(false);
+              }
+            } catch {}
+          }
+        );
+      } catch {
+        setScanError("Kamera tidak tersedia atau izin ditolak.");
+      }
+    };
+    init();
+    return () => {
+      if (scanner) {
+        scanner.stop().catch(() => {});
+      }
+    };
+  }, [scannerOpen]);
   return (
     <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
       <Panel title="Input penarikan">
         <div className="grid gap-4">
-          <select
-            className="h-11 rounded-[8px] border border-slate-200 px-3"
-            value={props.selectedBox}
-            onChange={(event) => props.setSelectedBox(event.target.value)}
-          >
-            {props.boxes.map((box) => (
-              <option key={box.id} value={box.boxNumber}>
-                {box.boxNumber} - {statusLabel(box.status)}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select
+              className="h-11 flex-1 rounded-[8px] border border-slate-200 px-3"
+              value={props.selectedBox}
+              onChange={(event) => props.setSelectedBox(event.target.value)}
+            >
+              {props.boxes.map((box) => (
+                <option key={box.id} value={box.boxNumber}>
+                  {box.boxNumber} - {statusLabel(box.status)}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setScannerOpen(true)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              aria-label="Scan QR kaleng"
+            >
+              <QrCode size={20} />
+            </button>
+          </div>
           <div className="rounded-[8px] bg-paper p-4">
             <p className="text-sm text-slate-500">Rumah terhubung</p>
             <p className="mt-1 font-semibold text-ink">{props.selectedHouse?.name ?? "-"}</p>
@@ -760,6 +851,23 @@ function WithdrawalsView(props: {
           </button>
         </div>
       </Panel>
+      {scannerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setScannerOpen(false)}>
+          <div className="mx-4 w-full max-w-md rounded-[12px] bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-semibold text-ink">Scan QR Kaleng</p>
+              <button onClick={() => setScannerOpen(false)} className="rounded-[6px] p-1 text-slate-500 hover:bg-slate-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div id="qr-scanner-container" className="aspect-square overflow-hidden rounded-[8px] bg-black"></div>
+            {scanError && (
+              <p className="mt-3 text-sm text-red-600">{scanError}</p>
+            )}
+            <p className="mt-3 text-center text-xs text-slate-500">Arahkan kamera ke QR code pada kaleng</p>
+          </div>
+        </div>
+      )}
       <Panel title="Riwayat penarikan">
         <div className="grid gap-3">
           {props.withdrawals.map((item) => (
@@ -891,27 +999,63 @@ function SettingsView() {
   );
 }
 
-function AuditLogsView({ account, withdrawals }: { account: Account; withdrawals: Withdrawal[] }) {
-  const rows = [
-    ["2026-05-18 22:40", account.name, "Login pengurus", "Sesi internal aktif"],
-    ["2026-05-18 22:35", "Bendahara", "Validasi penarikan", withdrawals[0]?.boxNumber ?? "-"],
-    ["2026-05-18 21:10", "Admin Ranting", "Update data rumah", "RT01/RW02"],
-    ["2026-05-18 20:45", "Petugas Lapangan", "Input penarikan", withdrawals[1]?.boxNumber ?? "-"]
-  ];
+function AuditLogsView({ auditLogs }: { auditLogs: AuditLogEntry[] }) {
+  const rows = auditLogs.map((log) => [
+    new Date(log.createdAt).toLocaleString("id-ID", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    }),
+    log.actorName,
+    actionLabel(log.action),
+    log.entityType === "Withdrawal" ? `Penarikan #${log.entityId}` :
+      log.entityType === "House" ? `Rumah #${log.entityId}` :
+      log.entityType === "CoinBox" ? `Kaleng #${log.entityId}` :
+      log.entityType === "User" ? `User #${log.entityId}` :
+      log.action
+  ]);
 
   return (
     <div className="grid gap-6">
       <Panel title="Audit aktivitas internal">
-        <DataTable headers={["Waktu", "Aktor", "Aktivitas", "Objek"]} rows={rows} />
+        {auditLogs.length === 0 ? (
+          <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+            Belum ada catatan audit.
+          </div>
+        ) : (
+          <DataTable headers={["Waktu", "Aktor", "Aktivitas", "Objek"]} rows={rows} />
+        )}
       </Panel>
-      <Panel title="Catatan keamanan">
-        <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-          Data audit masih dummy untuk MVP. Struktur halaman disiapkan agar nanti bisa
-          dihubungkan ke audit log server tanpa mengubah navigasi internal.
+      <Panel title="Informasi audit">
+        <div className="rounded-[8px] border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+          Setiap aksi penting (tambah, ubah, hapus data, validasi, penolakan,
+          void penarikan) tercatat secara otomatis di server. Data ini tidak bisa
+          diubah atau dihapus oleh pengguna.
         </div>
       </Panel>
     </div>
   );
+}
+
+function actionLabel(action: string) {
+  const labels: Record<string, string> = {
+    "withdrawal.create": "Input penarikan",
+    "withdrawal.validate": "Validasi penarikan",
+    "withdrawal.reject": "Tolak penarikan",
+    "withdrawal.void": "Void penarikan",
+    "house.create": "Tambah rumah",
+    "house.update": "Ubah rumah",
+    "house.delete": "Nonaktifkan rumah",
+    "coin_box.create": "Tambah kaleng",
+    "coin_box.assign": "Assign kaleng",
+    "coin_box.update": "Ubah kaleng",
+    "coin_box.delete": "Nonaktifkan kaleng",
+    "auth.login": "Login pengurus",
+    "auth.logout": "Logout pengurus"
+  };
+  return labels[action] ?? action;
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
