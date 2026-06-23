@@ -1,5 +1,8 @@
 import { DocumentationGrid, HeroCta, HeroSummaryCard, IncomeChart, ProgramsPanel, PublicReportTable, PublicStatsGrid } from "@/components/public-site";
 
+// Render on request (reads live DB data); skip build-time static prerender.
+export const dynamic = "force-dynamic";
+
 export default function PublicHomePage() {
   return (
     <main className="bg-white">
