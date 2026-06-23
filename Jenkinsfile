@@ -4,6 +4,7 @@ pipeline {
     environment {
         APP_NAME = "lazisnu-pakiskembar-app"
         APP_URL = "http://127.0.0.1:3002"
+        DATABASE_URL = "postgresql://lazisnu:lazisnu135@192.168.1.35:5433/lazisnu_db?schema=public"
     }
 
     stages {
