@@ -3,3 +3,12 @@ node_modules
 .codex-ssh-runner
 .env
 .env*.local
+
+# Build artifacts
+*.tsbuildinfo
+
+# Test/coverage output
+coverage
+
+# Logs (Winston output dir)
+logs

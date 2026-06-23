@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Bell,
@@ -19,6 +19,7 @@ import {
   WalletCards,
   X
 } from "lucide-react";
+import { ReportsView } from "./reports-view";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -949,34 +950,6 @@ function FinanceView({
   );
 }
 
-function ReportsView({ stats, withdrawals }: { stats: DashboardStats; withdrawals: Withdrawal[] }) {
-  return (
-    <div className="grid gap-6">
-      <Panel title="Filter laporan">
-        <div className="grid gap-3 md:grid-cols-[180px_180px_1fr_auto]">
-          <input className="h-11 rounded-[8px] border border-slate-200 px-3" type="date" defaultValue="2026-05-01" />
-          <input className="h-11 rounded-[8px] border border-slate-200 px-3" type="date" defaultValue="2026-05-31" />
-          <select className="h-11 rounded-[8px] border border-slate-200 px-3">
-            <option>Semua wilayah</option>
-            <option>RT01/RW02</option>
-            <option>RT02/RW02</option>
-          </select>
-          <button className="flex h-11 items-center justify-center gap-2 rounded-[8px] border border-slate-200 px-4 font-semibold text-slate-700">
-            <Download size={18} />
-            Export
-          </button>
-        </div>
-      </Panel>
-      <Panel title="Ringkasan laporan Mei 2026">
-        <div className="grid gap-4 md:grid-cols-3">
-          <Metric label="Transaksi" value={String(withdrawals.length)} />
-          <Metric label="Tervalidasi" value={String(withdrawals.filter((item) => item.status === "VALIDATED").length)} />
-          <Metric label="Total resmi" value={currency.format(stats.income)} />
-        </div>
-      </Panel>
-    </div>
-  );
-}
 
 function SettingsView() {
   return (

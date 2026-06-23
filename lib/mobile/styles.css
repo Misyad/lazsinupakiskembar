@@ -1,0 +1,103 @@
+﻿/**
+ * Mobile-Optimized CSS Utilities
+ * 
+ * Tailwind-compatible utility classes for mobile-first design
+ * Touch-friendly controls (min 44px), optimized spacing, readability
+ * 
+ * Add to your global CSS or component styles
+ */
+
+/* Touch-friendly tap targets (minimum 44px as per Apple/Android guidelines) */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tap-target-lg {
+  min-width: 56px;
+  min-height: 56px;
+}
+
+/* Mobile-optimized button sizes */
+.btn-mobile {
+  min-height: 48px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.btn-mobile-lg {
+  min-height: 56px;
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+/* Mobile-friendly spacing */
+.spacing-mobile {
+  padding: 16px;
+}
+
+.spacing-mobile-lg {
+  padding: 24px;
+}
+
+/* Optimized font sizes for mobile readability */
+.text-mobile-body {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.text-mobile-heading {
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.text-mobile-label {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Mobile-optimized form inputs */
+.input-mobile {
+  min-height: 48px;
+  font-size: 16px; /* Prevents zoom on iOS */
+  padding: 12px 16px;
+}
+
+/* Safe area support for notched devices */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Viewport height fix for mobile browsers */
+.vh-mobile {
+  height: calc(var(--vh, 1vh) * 100);
+}
+
+/* Optimize scrolling performance */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Prevent text selection on UI controls */
+.no-select-mobile {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-optimized card spacing */
+.card-mobile {
+  padding: 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+}
