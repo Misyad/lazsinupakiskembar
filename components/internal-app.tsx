@@ -10,6 +10,7 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Megaphone,
   Menu,
   QrCode,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { ReportsView } from "./reports-view";
 import { ContentView } from "./content-view";
+import { KoinView } from "./koin/koin-view";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -204,6 +206,7 @@ const navigation: NavItem[] = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS", "BENDAHARA"] },
   { key: "houses", href: "/houses", label: "Rumah", icon: Home, roles: ["SUPER_ADMIN", "ADMIN_RANTING"] },
   { key: "coin-boxes", href: "/coin-boxes", label: "Kaleng", icon: Boxes, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS"] },
+  { key: "koin", href: "/koin", label: "Sebaran Kotak", icon: MapPin, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS"] },
   { key: "withdrawals", href: "/withdrawals", label: "Penarikan", icon: QrCode, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS", "BENDAHARA"] },
   { key: "finance", href: "/finance", label: "Keuangan", icon: WalletCards, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
   { key: "reports", href: "/reports", label: "Laporan", icon: FileText, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
@@ -222,6 +225,7 @@ export type InternalPage =
   | "dashboard"
   | "houses"
   | "coin-boxes"
+  | "koin"
   | "withdrawals"
   | "finance"
   | "reports"
@@ -524,6 +528,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
             />
           )}
           {initialPage === "coin-boxes" && <BoxesView boxes={boxes} houses={houses} />}
+          {initialPage === "koin" && <KoinView />}
           {initialPage === "withdrawals" && (
             <WithdrawalsView
               account={account}
@@ -558,6 +563,7 @@ function pageTitle(page: string) {
     dashboard: "Dashboard",
     houses: "Manajemen Rumah",
     "coin-boxes": "Manajemen Kaleng",
+    koin: "Sebaran Kotak",
     withdrawals: "Penarikan Koin",
     finance: "Keuangan",
     reports: "Laporan",
