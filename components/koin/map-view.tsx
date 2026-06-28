@@ -133,13 +133,16 @@ export default function MapView() {
 
     if (data.length === 0) return;
 
-    // Try to load MarkerCluster
-    let MarkerClusterGroup: any;
+    // Try to load MarkerCluster (optional, falls back to individual markers)
+    let MarkerClusterGroup: any = null;
     try {
-      const mod = await import("leaflet.markercluster");
-      MarkerClusterGroup = mod.MarkerClusterGroup || (window as any).L?.MarkerClusterGroup;
+      // @ts-ignore - optional dependency
+      const L = await import("leaflet");
+      if ((window as any).L?.MarkerClusterGroup) {
+        MarkerClusterGroup = (window as any).L.MarkerClusterGroup;
+      }
     } catch {
-      MarkerClusterGroup = null;
+      // marker cluster not available, use individual markers
     }
 
     const markers = MarkerClusterGroup ? new MarkerClusterGroup({ chunkedLoading: true }) : null;
