@@ -166,6 +166,12 @@ model House {
   phone       String?                @db.VarChar(30)
   address     String                 @db.VarChar(255)
   rtRw        String                 @map("rt_rw") @db.VarChar(30)
+  rt          String?                @db.VarChar(10)
+  rw          String?                @db.VarChar(10)
+  dusun       String?                @db.VarChar(60)
+  latitude    Float?                 @map("latitude")
+  longitude   Float?                 @map("longitude")
+  photoId     Int?                   @map("photo_id")
   active      Boolean                @default(true)
   joinedAt    DateTime               @map("joined_at")
   createdAt   DateTime               @default(now()) @map("created_at")
@@ -174,10 +180,13 @@ model House {
   area        Area                   @relation(fields: [areaId], references: [id])
   assignments CoinBoxAssignment[]
   withdrawals Withdrawal[]
+  photo       MediaAsset?            @relation("HousePhoto", fields: [photoId], references: [id], onDelete: SetNull)
 
   @@index([areaId])
   @@index([rtRw])
   @@index([active])
+  @@index([dusun])
+  @@index([latitude])
   @@map("houses")
 }
 
@@ -228,6 +237,8 @@ model Withdrawal {
   rejectedAt   DateTime?        @map("rejected_at")
   voidedAt      DateTime?        @map("voided_at")
   voidReason    String?          @map("void_reason") @db.VarChar(500)
+  latitude     Float?           @map("latitude")
+  longitude    Float?           @map("longitude")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
   coinBox      CoinBox          @relation(fields: [coinBoxId], references: [id])
@@ -378,6 +389,7 @@ model MediaAsset {
   data          Bytes
   createdAt     DateTime        @default(now()) @map("created_at")
   documentation Documentation[]
+  housePhotos   House[]         @relation("HousePhoto")
 
   @@map("media_assets")
 }
