@@ -136,7 +136,7 @@ export default function MapView() {
     // Try to load MarkerCluster (optional, falls back to individual markers)
     let MarkerClusterGroup: any = null;
     try {
-      // @ts-ignore - optional dependency
+      // @ts-expect-error - optional dependency
       const L = await import("leaflet");
       if ((window as any).L?.MarkerClusterGroup) {
         MarkerClusterGroup = (window as any).L.MarkerClusterGroup;
