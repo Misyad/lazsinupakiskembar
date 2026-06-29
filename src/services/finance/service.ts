@@ -24,7 +24,7 @@ export async function getFinanceSummary() {
       _sum: { amount: true }
     }),
     prisma.withdrawal.count({ where: { status: "PENDING" } }),
-    prisma.house.count({ where: { active: true, deletedAt: null } }),
+    prisma.house.count({ where: { status: "aktif", deletedAt: null } }),
     prisma.coinBox.count({ where: { status: "ACTIVE", deletedAt: null } })
   ]);
 
