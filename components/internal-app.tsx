@@ -14,6 +14,7 @@ import {
   Megaphone,
   Menu,
   QrCode,
+  Route,
   Search,
   Settings,
   Target,
@@ -26,6 +27,7 @@ import { ContentView } from "./content-view";
 import { KoinView } from "./koin/koin-view";
 import { DashboardAnalytics } from "./koin/dashboard-analytics";
 import { CoverageView } from "./koin/coverage-view";
+import { RouteView } from "./koin/route-view";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -211,6 +213,7 @@ const navigation: NavItem[] = [
   { key: "coin-boxes", href: "/coin-boxes", label: "Kaleng", icon: Boxes, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS"] },
   { key: "koin", href: "/koin", label: "PETA DISTRIBUSI", icon: MapPin, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS"] },
   { key: "coverage", href: "/coverage", label: "Cakupan Wilayah", icon: Target, roles: ["SUPER_ADMIN", "ADMIN_RANTING"] },
+  { key: "routes", href: "/routes", label: "Rute Pengambilan", icon: Route, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS"] },
   { key: "withdrawals", href: "/withdrawals", label: "Penarikan", icon: QrCode, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "PETUGAS", "BENDAHARA"] },
   { key: "finance", href: "/finance", label: "Keuangan", icon: WalletCards, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
   { key: "reports", href: "/reports", label: "Laporan", icon: FileText, roles: ["SUPER_ADMIN", "ADMIN_RANTING", "BENDAHARA"] },
@@ -232,6 +235,7 @@ export type InternalPage =
   | "koin"
   | "coverage"
   | "withdrawals"
+  | "routes"
   | "finance"
   | "reports"
   | "content"
@@ -535,6 +539,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
           {initialPage === "coin-boxes" && <BoxesView boxes={boxes} houses={houses} />}
           {initialPage === "koin" && <KoinView />}
           {initialPage === "coverage" && <CoverageView />}
+          {initialPage === "routes" && <RouteView />}
           {initialPage === "withdrawals" && (
             <WithdrawalsView
               account={account}
@@ -571,6 +576,7 @@ function pageTitle(page: string) {
     "coin-boxes": "Manajemen Kaleng",
     koin: "PETA DISTRIBUSI",
     coverage: "Cakupan Wilayah",
+    routes: "Rute Pengambilan",
     withdrawals: "Penarikan Koin",
     finance: "Keuangan",
     reports: "Laporan",
