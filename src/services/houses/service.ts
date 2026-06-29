@@ -19,7 +19,7 @@ export async function listHouses() {
       },
       photo: { select: { id: true, mimeType: true } },
       photos: { select: { id: true, type: true, file: true } },
-      _count: { select: { withdrawals: true, logs: true } }
+      _count: { select: { withdrawals: true, logs: true, photos: true } }
     }
   });
 }
@@ -109,7 +109,7 @@ export async function createHouse(input: CreateHouseInput) {
       },
       photo: { select: { id: true, mimeType: true } },
       photos: { select: { id: true, type: true, file: true } },
-      _count: { select: { withdrawals: true, logs: true } }
+      _count: { select: { withdrawals: true, logs: true, photos: true } }
     }
   });
 
@@ -155,7 +155,7 @@ export async function updateHouse(id: number, input: UpdateHouseInput) {
       },
       photo: { select: { id: true, mimeType: true } },
       photos: { select: { id: true, type: true, file: true } },
-      _count: { select: { withdrawals: true, logs: true } }
+      _count: { select: { withdrawals: true, logs: true, photos: true } }
     }
   });
 
