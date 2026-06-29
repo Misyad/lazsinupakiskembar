@@ -142,6 +142,23 @@ export async function updateHouse(id: number, input: UpdateHouseInput) {
 
   const updated = await prisma.house.update({ where: { id }, data });
 
+  // Re-query with full includes for serialization
+  const full = await prisma.house.findFirst({
+    where: { id },
+    include: {
+      area: { select: { id: true, name: true, code: true } },
+      officer: { select: { id: true, name: true } },
+      assignments: {
+        where: { status: "ACTIVE" },
+        include: { coinBox: { select: { id: true, boxNumber: true, status: true } } },
+        take: 1
+      },
+      photo: { select: { id: true, mimeType: true } },
+      photos: { select: { id: true, type: true, file: true } },
+      _count: { select: { withdrawals: true, logs: true } }
+    }
+  });
+
   // Log update
   await prisma.houseLog.create({
     data: {
@@ -152,7 +169,7 @@ export async function updateHouse(id: number, input: UpdateHouseInput) {
     }
   });
 
-  return updated;
+  return full!;
 }
 
 export async function deleteHouse(id: number) {
