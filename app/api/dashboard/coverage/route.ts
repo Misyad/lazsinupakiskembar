@@ -9,8 +9,8 @@ export async function GET() {
   const houses = await prisma.house.findMany({
     where: { deletedAt: null },
     include: {
-      _count: { select: { assignments: { where: { status: "ACTIVE" } } } },
-      area: true
+      area: { select: { name: true } },
+      assignments: { where: { status: "ACTIVE" }, select: { id: true } }
     }
   });
 
@@ -36,13 +36,13 @@ export async function GET() {
     const rwData = d.rws.get(rw)!;
     rwData.rts.add(rt);
 
-    if (h._count.assignments > 0) {
+    if (h.assignments.length > 0) {
       d.totalKotak++;
       rwData.kotak++;
     }
 
     rtMap.set(key, {
-      kota: h._count.assignments > 0 ? 1 : 0,
+      kota: h.assignments.length > 0 ? 1 : 0,
       kk: 1
     });
   });
@@ -82,9 +82,9 @@ export async function GET() {
     total: {
       dusun: coverage.length,
       totalKK: houses.length,
-      totalKotak: houses.filter((h) => h._count.assignments > 0).length,
+      totalKotak: houses.filter((h) => h.assignments.length > 0).length,
       rataCoverage: houses.length > 0
-        ? Math.round((houses.filter((h) => h._count.assignments > 0).length / houses.length) * 10000) / 100
+        ? Math.round((houses.filter((h) => h.assignments.length > 0).length / houses.length) * 10000) / 100
         : 0
     }
   });
