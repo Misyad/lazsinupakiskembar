@@ -35,7 +35,7 @@ export async function assignCoinBox(id: number, input: AssignCoinBoxInput, actor
   if (coinBox.status !== "ACTIVE") {
     throw new BusinessRuleError("COIN_BOX_NOT_ACTIVE", "Kaleng harus berstatus aktif untuk di-assign.");
   }
-  if (!house.active) {
+  if (house.status !== "aktif") {
     throw new BusinessRuleError("HOUSE_NOT_ACTIVE", "Rumah harus aktif untuk menerima assignment kaleng.");
   }
 
