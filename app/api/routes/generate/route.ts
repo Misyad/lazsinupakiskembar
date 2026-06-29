@@ -15,10 +15,13 @@ export async function POST(request: Request) {
     }
 
     // Get houses with coordinates
+    const whereId = houseIds?.length ? { id: { in: houseIds } } : {};
     const houses = await prisma.house.findMany({
       where: {
-        id: houseIds?.length ? { in: houseIds } : { deletedAt: null, latitude: { not: null } },
+        ...whereId,
         ...(dusun ? { dusun } : {}),
+        deletedAt: null,
+        ...(houseIds?.length ? {} : { latitude: { not: null } }),
         assignments: { some: { status: "ACTIVE" } }
       },
       include: {
