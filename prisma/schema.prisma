@@ -76,6 +76,7 @@ model User {
   auditLogs    AuditLog[]
   wilayahStats WilayahStatistics[]
   routeCollections RouteCollection[]
+  housesOfficer House[]          @relation("HouseOfficer")
 
   @@index([status])
   @@map("users")
@@ -162,32 +163,44 @@ model Area {
 }
 
 model House {
-  id          Int                    @id @default(autoincrement())
-  areaId      Int                    @map("area_id")
-  name        String                 @db.VarChar(140)
-  phone       String?                @db.VarChar(30)
-  address     String                 @db.VarChar(255)
-  rtRw        String                 @map("rt_rw") @db.VarChar(30)
-  rt          String?                @db.VarChar(10)
-  rw          String?                @db.VarChar(10)
-  dusun       String?                @db.VarChar(60)
-  latitude    Float?                 @map("latitude")
-  longitude   Float?                 @map("longitude")
-  photoId     Int?                   @map("photo_id")
-  active      Boolean                @default(true)
-  joinedAt    DateTime               @map("joined_at")
-  createdAt   DateTime               @default(now()) @map("created_at")
-  updatedAt   DateTime               @updatedAt @map("updated_at")
-  deletedAt   DateTime?              @map("deleted_at")
-  area        Area                   @relation(fields: [areaId], references: [id])
-  assignments CoinBoxAssignment[]
-  withdrawals Withdrawal[]
-  photo       MediaAsset?            @relation("HousePhoto", fields: [photoId], references: [id], onDelete: SetNull)
+  id           Int                    @id @default(autoincrement())
+  houseCode    String?                @unique @map("house_code") @db.VarChar(20)
+  areaId       Int                    @map("area_id")
+  headOfFamily String                 @map("head_of_family") @db.VarChar(140)
+  spouseName   String?                @map("spouse_name") @db.VarChar(140)
+  phone        String?                @db.VarChar(30)
+  whatsapp     String?                @db.VarChar(30)
+  email        String?                @db.VarChar(100)
+  address      String                 @db.VarChar(255)
+  rtRw         String                 @map("rt_rw") @db.VarChar(30)
+  rt           String?                @db.VarChar(10)
+  rw           String?                @db.VarChar(10)
+  hamlet       String?                @db.VarChar(60)
+  postalCode   String?                @map("postal_code") @db.VarChar(10)
+  locationNote String?                @map("location_note") @db.VarChar(255)
+  latitude     Float?                 @map("latitude")
+  longitude    Float?                 @map("longitude")
+  photoId      Int?                   @map("photo_id")
+  status       String                 @default("belum_dipasang") @db.VarChar(30)
+  officerId    Int?                   @map("officer_id")
+  surveyDate   DateTime?              @map("survey_date")
+  notes        String?                @db.VarChar(500)
+  joinedAt     DateTime               @map("joined_at")
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+  deletedAt    DateTime?              @map("deleted_at")
+  area         Area                   @relation(fields: [areaId], references: [id])
+  officer      User?                  @relation("HouseOfficer", fields: [officerId], references: [id], onDelete: SetNull)
+  assignments  CoinBoxAssignment[]
+  withdrawals  Withdrawal[]
+  photo        MediaAsset?            @relation("HousePhoto", fields: [photoId], references: [id], onDelete: SetNull)
+  photos       HousePhoto[]
+  logs         HouseLog[]
 
   @@index([areaId])
   @@index([rtRw])
-  @@index([active])
-  @@index([dusun])
+  @@index([status])
+  @@index([hamlet])
   @@index([latitude])
   @@map("houses")
 }
@@ -433,4 +446,33 @@ model RouteCollection {
   @@index([tanggal])
   @@index([status])
   @@map("route_collections")
+}
+
+model HousePhoto {
+  id        Int      @id @default(autoincrement())
+  houseId   Int      @map("house_id")
+  type      String   @db.VarChar(30)
+  file      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  house     House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  @@index([houseId])
+  @@index([type])
+  @@map("house_photos")
+}
+
+model HouseLog {
+  id         Int      @id @default(autoincrement())
+  houseId    Int      @map("house_id")
+  action     String   @db.VarChar(60)
+  description String? @db.VarChar(500)
+  metadata   Json?    @map("metadata")
+  userId     Int?     @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  house      House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([houseId])
+  @@index([action])
+  @@map("house_logs")
 }
