@@ -36,8 +36,11 @@ export function RouteView() {
     fetch("/api/koin/map")
       .then((r) => r.json())
       .then((data) => {
-        const raw = (data.features || []).map((f: any) => f.properties?.dusun as string).filter((s: string | undefined): s is string => !!s);        const dusun = [...new Set(raw)].sort();
-        setDusunList(dusun.sort());
+        const dusun = data.features
+          ?.map((f: any) => f.properties?.dusun)
+          .filter((s: any) => typeof s === "string")
+          .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i) || [];
+        setDusunList(dusun);
       });
   }, []);
 
