@@ -40,7 +40,7 @@ export async function GET(_request: Request, { params }: Params) {
         address: house.address,
         rt: house.rt || house.rtRw?.split("/")[0] || "",
         rw: house.rw || house.rtRw?.split("/")[1] || "",
-        dusun: house.dusun || "",
+        dusun: house.hamlet || "",
         phone: house.phone,
         latitude: house.latitude,
         longitude: house.longitude,
