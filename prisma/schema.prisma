@@ -393,3 +393,42 @@ model MediaAsset {
 
   @@map("media_assets")
 }
+
+model WilayahStatistics {
+  id          Int      @id @default(autoincrement())
+  dusun       String?  @db.VarChar(60)
+  rw          String?  @db.VarChar(10)
+  rt          String?  @db.VarChar(10)
+  totalKK     Int      @default(0) @map("total_kk")
+  totalKotak  Int      @default(0) @map("total_kotak")
+  coverage    Float    @default(0)
+  targetKotak Int      @default(0) @map("target_kotak")
+  status      String   @default("perlu_penambahan") @db.VarChar(30)
+  petugasId   Int?     @map("petugas_id")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  petugas     User?    @relation(fields: [petugasId], references: [id], onDelete: SetNull)
+
+  @@index([dusun])
+  @@index([status])
+  @@map("wilayah_statistics")
+}
+
+model RouteCollection {
+  id          Int      @id @default(autoincrement())
+  petugasId   Int      @map("petugas_id")
+  tanggal     DateTime @map("tanggal")
+  dusun       String?  @db.VarChar(60)
+  jarak       Float    @default(0)
+  estimasi    Int      @default(0)
+  status      String   @default("planned") @db.VarChar(30)
+  totalKotak  Int      @default(0) @map("total_kotak")
+  selesaiDi   DateTime? @map("selesai_di")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  petugas     User     @relation(fields: [petugasId], references: [id])
+
+  @@index([petugasId])
+  @@index([tanggal])
+  @@index([status])
+  @@map("route_collections")
+}
