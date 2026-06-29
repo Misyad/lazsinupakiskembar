@@ -74,6 +74,8 @@ model User {
   cashCreated  CashTransaction[] @relation("CashTransactionCreator")
   cashValidated CashTransaction[] @relation("CashTransactionValidator")
   auditLogs    AuditLog[]
+  wilayahStats WilayahStatistics[]
+  routeCollections RouteCollection[]
 
   @@index([status])
   @@map("users")
