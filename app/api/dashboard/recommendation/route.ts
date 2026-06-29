@@ -88,8 +88,8 @@ export async function GET() {
 
   // 4. Dusun tanpa petugas
   const petugasWilayah = new Map<string, Set<number>>();
-  houses.forEach((h) => {
-    h.assignments.forEach((a) => {
+  houses.forEach((h: any) => {
+    h.assignments.forEach((a: any) => {
       if (a.status === "ACTIVE") {
         const dusun = h.dusun || h.area?.name || "Lainnya";
         if (!petugasWilayah.has(dusun)) petugasWilayah.set(dusun, new Set());
