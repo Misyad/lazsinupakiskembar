@@ -116,7 +116,7 @@ export async function generateReportData(period: ReportPeriod) {
   const withdrawalReports: WithdrawalReport[] = withdrawals.map((w) => ({
     id: w.id,
     boxNumber: w.coinBox.boxNumber,
-    houseName: w.house.name,
+    houseName: w.house.headOfFamily,
     houseAddress: w.house.address,
     amount: w.amount,
     collectorName: w.collector.name,

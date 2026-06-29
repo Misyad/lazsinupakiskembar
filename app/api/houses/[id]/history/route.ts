@@ -36,7 +36,7 @@ export async function GET(_request: Request, { params }: Params) {
     return Response.json({
       house: {
         id: house.id,
-        name: house.name,
+        name: house.headOfFamily,
         address: house.address,
         rt: house.rt || house.rtRw?.split("/")[0] || "",
         rw: house.rw || house.rtRw?.split("/")[1] || "",

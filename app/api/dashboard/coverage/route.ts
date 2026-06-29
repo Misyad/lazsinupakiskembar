@@ -19,7 +19,7 @@ export async function GET() {
   const rtMap = new Map<string, { kota: number; kk: number }>();
 
   houses.forEach((h) => {
-    const dusun = h.dusun || h.area?.name || "Lainnya";
+    const dusun = h.hamlet || h.area?.name || "Lainnya";
     const rw = h.rw || "00";
     const rt = h.rt || "00";
     const key = `${dusun}-${rw}-${rt}`;

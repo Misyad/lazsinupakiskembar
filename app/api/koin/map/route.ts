@@ -31,11 +31,11 @@ export async function GET() {
     },
     properties: {
       id: h.id,
-      name: h.name,
+      name: h.headOfFamily,
       address: h.address,
       rt: h.rt || h.rtRw?.split("/")[0] || "",
       rw: h.rw || h.rtRw?.split("/")[1] || "",
-      dusun: h.dusun || "",
+      dusun: h.hamlet || "",
       phone: h.phone,
       active: h.active,
       boxNumber: h.assignments[0]?.coinBox?.boxNumber || null,

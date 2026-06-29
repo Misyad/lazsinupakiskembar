@@ -42,6 +42,7 @@ type Role =
 
 type House = {
   id: number;
+  headOfFamily: string;
   name: string;
   phone: string;
   address: string;
@@ -289,7 +290,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
         ]);
 
         if (!active) return;
-        setHouses(housesPayload.houses ?? []);
+        setHouses((housesPayload.houses ?? []).map((h: any) => ({ ...h, name: h.headOfFamily || h.name })));
         setBoxes(boxesPayload.coinBoxes ?? []);
         setWithdrawals(withdrawalsPayload.withdrawals ?? []);
         setFinanceSummary(financePayload.summary ?? null);
@@ -350,7 +351,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   }, [boxes, financeSummary, houses, withdrawals]);
 
   const filteredHouses = houses.filter((house) => {
-    const matchesSearch = `${house.name} ${house.phone} ${house.address} ${house.boxNumber}`
+    const matchesSearch = `${house.headOfFamily} ${house.phone} ${house.address} ${house.boxNumber}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesRt = rtFilter === "Semua" || house.rtRw === rtFilter;

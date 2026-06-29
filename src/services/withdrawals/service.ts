@@ -286,7 +286,7 @@ export function serializeWithdrawal(withdrawal: Prisma.WithdrawalGetPayload<{ in
     boxNumber: withdrawal.coinBox.boxNumber,
     coinBoxId: withdrawal.coinBoxId,
     houseId: withdrawal.houseId,
-    houseName: withdrawal.house.name,
+    houseName: withdrawal.house.headOfFamily,
     amount: withdrawal.amount,
     collectorId: withdrawal.collectorId,
     collector: withdrawal.collector.name,

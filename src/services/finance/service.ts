@@ -173,7 +173,7 @@ export function serializeCashTransaction(
     validatedBy: transaction.validatedBy?.name ?? null,
     source: transaction.withdrawal
       ? {
-          houseName: transaction.withdrawal.house.name,
+          houseName: transaction.withdrawal.house.headOfFamily,
           boxNumber: transaction.withdrawal.coinBox.boxNumber
         }
       : null

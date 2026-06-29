@@ -38,7 +38,7 @@ export async function GET() {
   // 2. Dusun dengan coverage terendah
   const dusunStats = new Map<string, { kk: number; kotak: number }>();
   houses.forEach((h) => {
-    const dusun = h.dusun || h.area?.name || "Lainnya";
+    const dusun = h.hamlet || h.area?.name || "Lainnya";
     if (!dusunStats.has(dusun)) dusunStats.set(dusun, { kk: 0, kotak: 0 });
     const d = dusunStats.get(dusun)!;
     d.kk++;
@@ -91,7 +91,7 @@ export async function GET() {
   houses.forEach((h: any) => {
     h.assignments.forEach((a: any) => {
       if (a.status === "ACTIVE") {
-        const dusun = h.dusun || h.area?.name || "Lainnya";
+        const dusun = h.hamlet || h.area?.name || "Lainnya";
         if (!petugasWilayah.has(dusun)) petugasWilayah.set(dusun, new Set());
       }
     });

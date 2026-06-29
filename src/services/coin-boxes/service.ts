@@ -82,7 +82,7 @@ export function serializeCoinBox(box: Awaited<ReturnType<typeof listCoinBoxes>>[
     boxNumber: box.boxNumber,
     status: box.status,
     houseId: assignment?.houseId ?? null,
-    houseName: assignment?.house.name ?? "Belum terhubung",
+    houseName: assignment?.house?.headOfFamily ?? "Belum terhubung",
     distributedAt: box.distributedAt?.toISOString().slice(0, 10) ?? "-"
   };
 }
