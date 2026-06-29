@@ -23,6 +23,7 @@ import {
 import { ReportsView } from "./reports-view";
 import { ContentView } from "./content-view";
 import { KoinView } from "./koin/koin-view";
+import { DashboardAnalytics } from "./koin/dashboard-analytics";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -514,7 +515,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
               Memuat data server...
             </div>
           ) : null}
-          {initialPage === "dashboard" && <Dashboard stats={stats} withdrawals={withdrawals} />}
+          {initialPage === "dashboard" && <DashboardAnalytics />}
           {initialPage === "houses" && (
             <HousesView
               houses={filteredHouses}
