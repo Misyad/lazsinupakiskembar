@@ -28,6 +28,7 @@ import { KoinView } from "./koin/koin-view";
 import { DashboardAnalytics } from "./koin/dashboard-analytics";
 import { CoverageView } from "./koin/coverage-view";
 import { RouteView } from "./koin/route-view";
+import { PetugasDashboard } from "./koin/petugas-dashboard";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -523,7 +524,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
               Memuat data server...
             </div>
           ) : null}
-          {initialPage === "dashboard" && <DashboardAnalytics />}
+          {initialPage === "dashboard" && (account.role === "PETUGAS" ? <PetugasDashboard /> : <DashboardAnalytics />)}
           {initialPage === "houses" && (
             <HousesView
               houses={filteredHouses}
