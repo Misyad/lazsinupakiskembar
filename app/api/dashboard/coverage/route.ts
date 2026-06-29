@@ -6,7 +6,7 @@ export async function GET() {
   const { response } = await requireApiPermission(permissions.housesRead);
   if (response) return response;
 
-  const houses = await prisma.house.findMany({
+  const houses: any[] = await prisma.house.findMany({
     where: { deletedAt: null },
     include: {
       area: { select: { name: true } },
