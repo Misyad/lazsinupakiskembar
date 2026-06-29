@@ -23,7 +23,7 @@ export async function GET() {
     petugasTeraktif
   ] = await Promise.all([
     // Total kotak aktif
-    prisma.assignment.count({ where: { status: "ACTIVE", unassignedAt: null } }),
+    prisma.coinBoxAssignment.count({ where: { status: "ACTIVE", unassignedAt: null } }),
 
     // Total semua kotak
     prisma.coinBox.count({ where: { deletedAt: null } }),
