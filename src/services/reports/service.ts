@@ -72,7 +72,7 @@ export async function generateReportData(period: ReportPeriod) {
       orderBy: { transactionAt: "desc" }
     }),
     prisma.house.count({
-      where: { active: true, deletedAt: null }
+      where: { status: "aktif", deletedAt: null }
     }),
     prisma.coinBox.count({
       where: { status: "ACTIVE", deletedAt: null }

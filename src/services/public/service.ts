@@ -37,7 +37,7 @@ export async function getPublicStats(): Promise<PublicStat[]> {
       _sum: { amount: true },
       where: { type: "ADJUSTMENT", status: "VALIDATED" }
     }),
-    prisma.house.count({ where: { active: true, deletedAt: null } })
+    prisma.house.count({ where: { status: "aktif", deletedAt: null } })
   ]);
 
   const totalIncome = income._sum.amount ?? 0;
