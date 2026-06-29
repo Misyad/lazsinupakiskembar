@@ -96,7 +96,24 @@ export async function createHouse(input: CreateHouseInput) {
     }
   });
 
-  return { ...updated, headOfFamily: updated.headOfFamily };
+  // Re-query with full includes for serialization
+  const full = await prisma.house.findFirst({
+    where: { id: house.id },
+    include: {
+      area: { select: { id: true, name: true, code: true } },
+      officer: { select: { id: true, name: true } },
+      assignments: {
+        where: { status: "ACTIVE" },
+        include: { coinBox: { select: { id: true, boxNumber: true, status: true } } },
+        take: 1
+      },
+      photo: { select: { id: true, mimeType: true } },
+      photos: { select: { id: true, type: true, file: true } },
+      _count: { select: { withdrawals: true, logs: true } }
+    }
+  });
+
+  return full!;
 }
 
 export async function updateHouse(id: number, input: UpdateHouseInput) {
