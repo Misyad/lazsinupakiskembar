@@ -5,7 +5,7 @@ import { Plus, Play, CheckCircle2, MapPin, Clock, Route, Navigation, ChevronRigh
 interface Route {
   id: number; petugasId: number; tanggal: string; dusun: string | null;
   jarak: number; estimasi: number; status: string; totalKotak: number;
-  selesaiDi: string | null; petugas: { id: number; name: string };
+  selesaiDi: string | null; createdAt?: string; petugas: { id: number; name: string };
 }
 
 interface RouteOrder {
