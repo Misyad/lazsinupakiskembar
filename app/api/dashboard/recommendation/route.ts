@@ -6,10 +6,11 @@ export async function GET() {
   const { response } = await requireApiPermission(permissions.housesRead);
   if (response) return response;
 
-  const houses = await prisma.house.findMany({
+  const houses: any[] = await prisma.house.findMany({
     where: { deletedAt: null },
     include: {
-      _count: { select: { assignments: { where: { status: "ACTIVE" } } } },
+      area: { select: { name: true } },
+      assignments: { where: { status: "ACTIVE" }, select: { id: true } },
       withdrawals: { orderBy: { collectedAt: "desc" }, take: 1 }
     }
   });
@@ -41,7 +42,7 @@ export async function GET() {
     if (!dusunStats.has(dusun)) dusunStats.set(dusun, { kk: 0, kotak: 0 });
     const d = dusunStats.get(dusun)!;
     d.kk++;
-    if (h._count.assignments > 0) d.kotak++;
+    if (h.assignments.length > 0) d.kotak++;
   });
 
   let worstDusun = "";
@@ -105,7 +106,7 @@ export async function GET() {
 
   // 5. Target pemasangan
   const totalTarget = houses.length;
-  const terpasang = houses.filter((h) => h._count.assignments > 0).length;
+  const terpasang = houses.filter((h) => h.assignments.length > 0).length;
   const pctTarget = Math.round((terpasang / (totalTarget * 0.1)) * 100);
   insights.push({
     type: "target",
