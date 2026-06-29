@@ -44,7 +44,7 @@ export async function GET(_request: Request, { params }: Params) {
         phone: house.phone,
         latitude: house.latitude,
         longitude: house.longitude,
-        active: house.active,
+        status: house.status,
         area: house.area.name
       },
       coinBoxHistory: house.assignments.map((a) => ({
