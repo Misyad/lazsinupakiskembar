@@ -37,12 +37,12 @@ export async function GET() {
       rw: h.rw || h.rtRw?.split("/")[1] || "",
       dusun: h.hamlet || "",
       phone: h.phone,
-      active: h.active,
+      active: h.status === "aktif",
       boxNumber: h.assignments[0]?.coinBox?.boxNumber || null,
       boxStatus: h.assignments[0]?.coinBox?.status || null,
       lastWithdrawal: h.withdrawals[0]?.collectedAt || null,
       lastAmount: h.withdrawals[0]?.amount || null,
-      status: !h.active ? "inactive" : !h.assignments[0] ? "unassigned" : "active"
+      status: h.status === "nonaktif" ? "inactive" : !h.assignments[0] ? "unassigned" : "active"
     }
   }));
 
