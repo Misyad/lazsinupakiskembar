@@ -77,6 +77,7 @@ model User {
   wilayahStats WilayahStatistics[]
   routeCollections RouteCollection[]
   housesOfficer House[]          @relation("HouseOfficer")
+  houseLogs     HouseLog[]
 
   @@index([status])
   @@map("users")
