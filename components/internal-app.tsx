@@ -117,6 +117,7 @@ const accounts: Account[] = [
 const initialHouses: House[] = [
   {
     id: 1,
+    headOfFamily: "Keluarga H. Mahfudz",
     name: "Keluarga H. Mahfudz",
     phone: "081234567890",
     address: "Jl. Masjid RT 01 RW 02",
@@ -128,6 +129,7 @@ const initialHouses: House[] = [
   },
   {
     id: 2,
+    headOfFamily: "Keluarga Ibu Aminah",
     name: "Keluarga Ibu Aminah",
     phone: "082223334444",
     address: "Jl. Pesantren RT 02 RW 02",
@@ -139,6 +141,7 @@ const initialHouses: House[] = [
   },
   {
     id: 3,
+    headOfFamily: "Keluarga Pak Zainuri",
     name: "Keluarga Pak Zainuri",
     phone: "085655551111",
     address: "Jl. Makam RT 03 RW 01",
@@ -150,6 +153,7 @@ const initialHouses: House[] = [
   },
   {
     id: 4,
+    headOfFamily: "Keluarga Bu Siti",
     name: "Keluarga Bu Siti",
     phone: "081999223344",
     address: "Jl. Langgar RT 01 RW 01",
