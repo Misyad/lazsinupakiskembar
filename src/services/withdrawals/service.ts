@@ -36,7 +36,7 @@ export async function createWithdrawal(
     if (coinBox.status !== "ACTIVE") {
       throw new BusinessRuleError("COIN_BOX_NOT_ACTIVE", "Kaleng harus aktif untuk penarikan.");
     }
-    if (!house.active) {
+    if (house.status !== "aktif") {
       throw new BusinessRuleError("HOUSE_NOT_ACTIVE", "Rumah harus aktif untuk penarikan.");
     }
 
@@ -102,7 +102,7 @@ export async function validateWithdrawal(id: number, actorId: number, ipAddress?
     if (withdrawal.coinBox.status !== "ACTIVE") {
       throw new BusinessRuleError("COIN_BOX_NOT_ACTIVE", "Kaleng harus aktif saat validasi.");
     }
-    if (!withdrawal.house.active || withdrawal.house.deletedAt) {
+    if (withdrawal.house.status !== "aktif" || withdrawal.house.deletedAt) {
       throw new BusinessRuleError("HOUSE_NOT_ACTIVE", "Rumah harus aktif saat validasi.");
     }
 
