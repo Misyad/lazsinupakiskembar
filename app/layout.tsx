@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+// Leaflet CSS — required for map tiles to render correctly (especially Safari)
+import "leaflet/dist/leaflet.css";
 
 export const metadata: Metadata = {
   title: "KOINNU Ranting System",

@@ -116,16 +116,24 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
 
       debug("L.map created — size before tiles:", map.getSize().x, "x", map.getSize().y);
 
-      // ── Tile Layer — OpenStreetMap (test fallback, still has street names) ──
-      const tiles = L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      // ── ESRI Hybrid: Satellite + Reference overlay ─────────────
+      const sat = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
-          attribution: "&copy; OpenStreetMap contributors",
-          maxZoom: 19,
+          attribution: "&copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+          maxZoom: 18,
         }
       );
-      map.addLayer(tiles);
-      debug("tile layer added — OpenStreetMap (test mode)");
+      map.addLayer(sat);
+
+      const ref = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution: "&copy; Esri",
+          maxZoom: 18,
+        }
+      );
+      map.addLayer(ref);
 
       // ── Marker ─────────────────────────────────────────────────
       const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
