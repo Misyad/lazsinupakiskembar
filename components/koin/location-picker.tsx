@@ -43,11 +43,18 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
       });
 
       if (!mapRef.current || mapInstance.current) return;
+
+      // Small delay to ensure container has dimensions (fixes mobile layout issues)
+      await new Promise((r) => setTimeout(r, 100));
+
       const map = L.map(mapRef.current, {
         center: [lat, lng],
         zoom: 15,
         zoomControl: true,
       });
+
+      // Invalidate size after initialization to fix mobile container issues
+      setTimeout(() => map.invalidateSize(), 200);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap",
@@ -124,7 +131,7 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         </span>
       </div>
 
-      <div ref={mapRef} className="h-72 w-full rounded-[8px] border border-slate-200 z-0" />
+      <div ref={mapRef} className="h-72 w-full rounded-[8px] border border-slate-200 overflow-hidden z-0" />
 
       <div className="flex items-center justify-between">
         <button
