@@ -1,28 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { SearchAddress } from "./search-address";
 import { useCurrentLocation } from "./use-current-location";
-import { LocateFixed, MapPin, Wifi, WifiOff } from "lucide-react";
-import { saveTile, getTile, preCacheArea, getCacheInfo } from "@/lib/tile-cache";
+import { LocateFixed, MapPin, WifiOff } from "lucide-react";
+import { saveTile, preCacheArea } from "@/lib/tile-cache";
 
 interface Props {
   latitude?: number | null;
   longitude?: number | null;
   onChange: (lat: number, lng: number) => void;
-  /** Default: Desa. Koordinat untuk default view */
   defaultLat?: number;
   defaultLng?: number;
 }
 
-// Default center: Indonesia
 const DEF_LAT = -7.5;
 const DEF_LNG = 112.5;
 
 export function LocationPicker({ latitude, longitude, onChange, defaultLat, defaultLng }: Props) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<any>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const prevCoordRef = useRef({ lat: 0, lng: 0 });
+
   const [ready, setReady] = useState(false);
   const [caching, setCaching] = useState(false);
   const [cacheStatus, setCacheStatus] = useState("");
@@ -30,14 +31,57 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
   const [lng, setLng] = useState(longitude ?? defaultLng ?? DEF_LNG);
   const { location: gps, loading: gpsLoading, error: gpsError, request: gpsRequest } = useCurrentLocation();
 
-  // Load Leaflet dynamically (avoid SSR issues)
+  // Invalidate map size — called on every container resize
+  const invalidateSize = useCallback(() => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.invalidateSize();
+    }
+  }, []);
+
+  // Observe container size changes and invalidate map
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    // Wait until container has dimensions before initializing map
+    if (container.clientWidth === 0 || container.clientHeight === 0) return;
+
+    // Create ResizeObserver to keep map in sync with container
+    const ro = new ResizeObserver(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    });
+    ro.observe(container);
+    resizeObserverRef.current = ro;
+
+    return () => {
+      ro.disconnect();
+      resizeObserverRef.current = null;
+    };
+  }, []);
+
+  // Watch window resize for browser chrome/orientation changes
+  useEffect(() => {
+    window.addEventListener("resize", invalidateSize);
+    return () => window.removeEventListener("resize", invalidateSize);
+  }, [invalidateSize]);
+
+  // Initialize Leaflet map once (client-only)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const container = mapContainerRef.current;
+    if (!container) return;
+    // Don't init twice
+    if (mapInstanceRef.current) return;
 
-    async function init() {
+    let map: any = null;
+    let observer: ResizeObserver | null = null;
+
+    async function initMap() {
       const L = await import("leaflet");
 
-      // Fix default icon
+      // Fix default marker icon paths
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -45,83 +89,27 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      if (!mapRef.current || mapInstance.current) return;
-
-      // Wait until container has actual dimensions before init
-      const container = mapRef.current;
-      const checkReady = () => {
-        if (container.clientWidth > 0 && container.clientHeight > 0) {
-          return true;
-        }
-        return false;
-      };
-
-      // ResizeObserver to detect when container gets size
-      const resizeObserver = new ResizeObserver(() => {
-        if (mapInstance.current) {
-          mapInstance.current.invalidateSize();
-        }
-      });
-      resizeObserver.observe(container);
-
-      // Wait for container to have size (mobile layout delay)
-      if (!checkReady()) {
-        await new Promise<void>((resolve) => {
-          const check = setInterval(() => {
-            if (checkReady() || !container.isConnected) {
-              clearInterval(check);
-              resolve();
-            }
-          }, 50);
-        });
-      }
-
-      const map = L.map(container, {
+      map = L.map(container, {
         center: [lat, lng],
         zoom: 15,
         zoomControl: true,
-        zoomSnap: 0.5,
-        zoomDelta: 0.5,
-        wheelPxPerZoomLevel: 60,
+        zoomSnap: 1,
+        zoomDelta: 1,
+        attributionControl: true,
       });
 
-      // Invalidate after render + on each resize
-      const doInvalidate = () => map.invalidateSize();
-      setTimeout(doInvalidate, 300);
-      window.addEventListener("resize", doInvalidate);
-
-      // ESRI Hybrid: Satellite + Reference (jalan, batas)
-      const satellite = L.tileLayer(
+      // ESRI Hybrid: Satellite + Reference overlay
+      L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "&copy; ESRI", maxZoom: 19 }
+        { attribution: "&copy; Esri", maxZoom: 19 }
       ).addTo(map);
 
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "&copy; ESRI", maxZoom: 19 }
+        { attribution: "&copy; Esri", maxZoom: 19 }
       ).addTo(map);
 
-      // Cache tiles as they load (for offline use)
-      map.on("tileload", (e: any) => {
-        if (e.tile && e.tile.src && e.tile.src.startsWith("http")) {
-          const img = e.tile;
-          if (img.complete && img.naturalWidth > 0) {
-            try {
-              const canvas = document.createElement("canvas");
-              canvas.width = img.naturalWidth || 256;
-              canvas.height = img.naturalHeight || 256;
-              const ctx = canvas.getContext("2d");
-              if (ctx) {
-                ctx.drawImage(img, 0, 0);
-                canvas.toBlob((blob) => {
-                  if (blob) saveTile(e.tile.src, blob);
-                }, "image/png");
-              }
-            } catch { /* skip */ }
-          }
-        }
-      });
-
+      // Marker
       const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
       marker.on("dragend", () => {
         const pos = marker.getLatLng();
@@ -137,36 +125,66 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         onChange(e.latlng.lat, e.latlng.lng);
       });
 
-      mapInstance.current = map;
+      // Cache tiles for offline
+      map.on("tileload", (e: any) => {
+        if (e.tile?.src?.startsWith("http") && e.tile.complete && e.tile.naturalWidth > 0) {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = e.tile.naturalWidth || 256;
+            canvas.height = e.tile.naturalHeight || 256;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(e.tile, 0, 0);
+              canvas.toBlob((blob) => {
+                if (blob) saveTile(e.tile.src, blob);
+              }, "image/png");
+            }
+          } catch { /* ignore */ }
+        }
+      });
+
+      mapInstanceRef.current = map;
       markerRef.current = marker;
       setReady(true);
+
+      // Invalidate after mount to ensure correct sizing
+      map.invalidateSize();
+
+      // Re-check on next frame for layout shifts (no arbitrary delay)
+      requestAnimationFrame(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      });
     }
 
-    init();
+    initMap();
 
     return () => {
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
+      if (map) {
+        map.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
       }
     };
+    // Run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update marker position when lat/lng change externally
-  const prevCoord = useRef({ lat: 0, lng: 0 });
+  // Update marker when lat/lng change externally (e.g., search or GPS)
   useEffect(() => {
     if (!markerRef.current || !ready) return;
     const newLat = lat;
     const newLng = lng;
-    // Only re-center if coordinates changed significantly (>50m)
-    const prev = prevCoord.current;
-    const moved = Math.abs(newLat - prev.lat) > 0.001 || Math.abs(newLng - prev.lng) > 0.001;
+    const prev = prevCoordRef.current;
+    const moved = Math.abs(newLat - prev.lat) > 0.0005 || Math.abs(newLng - prev.lng) > 0.0005;
+
     markerRef.current.setLatLng([newLat, newLng]);
-    if (moved && mapInstance.current) {
-      mapInstance.current.setView([newLat, newLng], mapInstance.current.getZoom());
+    if (moved && mapInstanceRef.current) {
+      mapInstanceRef.current.setView([newLat, newLng], mapInstanceRef.current.getZoom());
     }
-    prevCoord.current = { lat: newLat, lng: newLng };
-  }, [latitude, longitude]);
+    prevCoordRef.current = { lat: newLat, lng: newLng };
+  }, [latitude, longitude, ready, lat, lng]);
 
   // Move to GPS location
   useEffect(() => {
@@ -175,11 +193,11 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
       setLat(gps.latitude);
       setLng(gps.longitude);
       onChange(gps.latitude, gps.longitude);
-      if (mapInstance.current) {
-        mapInstance.current.setView([gps.latitude, gps.longitude], 17);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setView([gps.latitude, gps.longitude], 17);
       }
     }
-  }, [gps]);
+  }, [gps, ready, onChange]);
 
   return (
     <div className="space-y-3">
@@ -188,7 +206,7 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         setLng(lng);
         onChange(lat, lng);
         if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-        if (mapInstance.current) mapInstance.current.setView([lat, lng], 17);
+        if (mapInstanceRef.current) mapInstanceRef.current.setView([lat, lng], 17);
       }} />
 
       <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -199,7 +217,12 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         </span>
       </div>
 
-      <div ref={mapRef} className="h-72 w-full rounded-[8px] border border-slate-200 overflow-hidden z-0" />
+      {/* Map container with explicit size and containment */}
+      <div
+        ref={mapContainerRef}
+        className="h-72 w-full rounded-[8px] border border-slate-200 overflow-hidden relative"
+        style={{ contain: "strict" }}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
