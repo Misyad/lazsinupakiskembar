@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { SearchAddress } from "./search-address";
 import { useCurrentLocation } from "./use-current-location";
-import { LocateFixed, MapPin } from "lucide-react";
+import { LocateFixed, MapPin, Wifi, WifiOff } from "lucide-react";
+import { saveTile, getTile, preCacheArea, getCacheInfo } from "@/lib/tile-cache";
 
 interface Props {
   latitude?: number | null;
@@ -23,6 +24,8 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
   const mapInstance = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
+  const [caching, setCaching] = useState(false);
+  const [cacheStatus, setCacheStatus] = useState("");
   const [lat, setLat] = useState(latitude ?? defaultLat ?? DEF_LAT);
   const [lng, setLng] = useState(longitude ?? defaultLng ?? DEF_LNG);
   const { location: gps, loading: gpsLoading, error: gpsError, request: gpsRequest } = useCurrentLocation();
@@ -56,10 +59,37 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
       // Invalidate size after initialization to fix mobile container issues
       setTimeout(() => map.invalidateSize(), 200);
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap",
-        maxZoom: 19,
-      }).addTo(map);
+      // ESRI Hybrid: Satellite + Reference (jalan, batas)
+      const satellite = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "&copy; ESRI", maxZoom: 19 }
+      ).addTo(map);
+
+      L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "&copy; ESRI", maxZoom: 19 }
+      ).addTo(map);
+
+      // Cache tiles as they load (for offline use)
+      map.on("tileload", (e: any) => {
+        if (e.tile && e.tile.src && e.tile.src.startsWith("http")) {
+          const img = e.tile;
+          if (img.complete && img.naturalWidth > 0) {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.naturalWidth || 256;
+              canvas.height = img.naturalHeight || 256;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blob) => {
+                  if (blob) saveTile(e.tile.src, blob);
+                }, "image/png");
+              }
+            } catch { /* skip */ }
+          }
+        }
+      });
 
       const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
       marker.on("dragend", () => {
@@ -140,7 +170,7 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
 
       <div ref={mapRef} className="h-72 w-full rounded-[8px] border border-slate-200 overflow-hidden z-0" />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
           onClick={gpsRequest}
@@ -150,9 +180,32 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
           <LocateFixed size={16} />
           {gpsLoading ? "Mendeteksi..." : "Gunakan Lokasi Saya"}
         </button>
-        {gpsError && <p className="text-xs text-red-500">{gpsError}</p>}
-        <p className="text-xs text-slate-400">Klik peta atau geser marker</p>
+        <div className="flex items-center gap-2">
+          {cacheStatus && (
+            <span className="text-xs text-slate-500">{cacheStatus}</span>
+          )}
+          <button
+            type="button"
+            onClick={async () => {
+              setCaching(true);
+              setCacheStatus("Meng-cache peta...");
+              const count = await preCacheArea(lat, lng, 13, 19);
+              setCacheStatus(`✅ ${count} tile tersimpan untuk offline`);
+              setCaching(false);
+            }}
+            disabled={caching}
+            className="flex items-center gap-2 rounded-[8px] border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {caching ? (
+              <span className="animate-spin">⏳</span>
+            ) : (
+              <WifiOff size={14} />
+            )}
+            {caching ? "Menyimpan..." : "Simpan Peta Offline"}
+          </button>
+        </div>
       </div>
+      {gpsError && <p className="text-xs text-red-500">{gpsError}</p>}
     </div>
   );
 }
