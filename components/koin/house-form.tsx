@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Upload } from "lucide-react";
 import { LocationPicker } from "./location-picker";
 
 interface Props {
@@ -9,11 +9,13 @@ interface Props {
 
 export function HouseForm({ onSuccess }: Props) {
   const [saving, setSaving] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [form, setForm] = useState({
     headOfFamily: "", spouseName: "", phone: "", whatsapp: "", email: "",
     address: "", rt: "", rw: "", hamlet: "", postalCode: "", locationNote: "",
     latitude: null as number | null, longitude: null as number | null,
     status: "belum_dipasang", officerId: "", surveyDate: "", notes: "",
+    photoFront: "", photoBox: "", photoOwner: "",
   });
   const [error, setError] = useState("");
 
@@ -30,6 +32,7 @@ export function HouseForm({ onSuccess }: Props) {
 
     setSaving(true);
     try {
+      // 1. Create house
       const res = await fetch("/api/houses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -37,12 +40,31 @@ export function HouseForm({ onSuccess }: Props) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Gagal menyimpan"); return; }
-      onSuccess?.(data.house);
+      const house = data.house;
+
+      // 2. Upload photos
+      const photoTypes = [
+        { type: "depan", value: form.photoFront },
+        { type: "kaleng", value: form.photoBox },
+        { type: "pemilik", value: form.photoOwner },
+      ];
+      for (const pt of photoTypes) {
+        if (pt.value) {
+          await fetch(`/api/houses/${house.id}/photos`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: pt.type, file: pt.value }),
+          });
+        }
+      }
+
+      onSuccess?.(house);
       // Reset form
       setForm({
         headOfFamily: "", spouseName: "", phone: "", whatsapp: "", email: "",
         address: "", rt: "", rw: "", hamlet: "", postalCode: "", locationNote: "",
         latitude: null, longitude: null, status: "belum_dipasang", officerId: "", surveyDate: "", notes: "",
+        photoFront: "", photoBox: "", photoOwner: "",
       });
     } catch {
       setError("Gagal menyimpan data");
@@ -112,7 +134,16 @@ export function HouseForm({ onSuccess }: Props) {
         />
       </Section>
 
-      {/* Section 4: Informasi Tambahan */}
+      {/* Section 4: Foto Rumah */}
+      <Section title="Foto Rumah">
+        <div className="grid gap-4 md:grid-cols-3">
+          <PhotoField label="Foto Depan Rumah *" required value={form.photoFront} onChange={(v) => update("photoFront", v)} />
+          <PhotoField label="Foto Letak Kaleng" value={form.photoBox} onChange={(v) => update("photoBox", v)} />
+          <PhotoField label="Foto Pemilik" value={form.photoOwner} onChange={(v) => update("photoOwner", v)} />
+        </div>
+      </Section>
+
+      {/* Section 5: Informasi Tambahan */}
       <Section title="Informasi Tambahan">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Status Rumah">
@@ -170,5 +201,55 @@ function Field({ label, required, children }: { label: string; required?: boolea
       </span>
       {children}
     </label>
+  );
+}
+
+function PhotoField({ label, required, value, onChange }: { label: string; required?: boolean; value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/media", { method: "POST", body });
+      const data = await res.json();
+      if (res.ok && data.asset?.id) {
+        onChange(`/api/media/${data.asset.id}`);
+      }
+    } catch {
+      console.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-lg p-3">
+      <p className="text-xs font-medium text-slate-500 mb-2">{label} {required && <span className="text-red-500">*</span>}</p>
+      {value ? (
+        <div className="relative">
+          <img src={value} alt={label} className="w-full h-28 object-cover rounded-lg" />
+          <button
+            onClick={() => onChange("")}
+            className="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs"
+          >×</button>
+        </div>
+      ) : (
+        <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-200 rounded-lg cursor-pointer hover:border-brand-400">
+          {uploading ? (
+            <Loader2 size={20} className="animate-spin text-slate-400" />
+          ) : (
+            <>
+              <Upload size={20} className="text-slate-400 mb-1" />
+              <span className="text-xs text-slate-400">Unggah foto</span>
+            </>
+          )}
+          <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+        </label>
+      )}
+    </div>
   );
 }

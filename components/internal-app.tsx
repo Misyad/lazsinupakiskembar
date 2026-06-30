@@ -33,6 +33,8 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { HouseForm } from "./koin/house-form";
+import { HouseDetail } from "./koin/house-detail";
 
 type Role =
   | "SUPER_ADMIN"
@@ -251,6 +253,8 @@ export type InternalPage =
 export function InternalApp({ initialPage, initialUser }: { initialPage: InternalPage; initialUser: Account }) {
   const router = useRouter();
   const [account] = useState<Account>(initialUser);
+  const [activeView, setActiveView] = useState<string | null>(null);
+  const [selectedHouseId, setSelectedHouseId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
@@ -261,7 +265,6 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   const [searchTerm, setSearchTerm] = useState("");
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [rtFilter, setRtFilter] = useState("Semua");
-  const [newHouseName, setNewHouseName] = useState("");
   const [selectedBox, setSelectedBox] = useState(initialBoxes[0].boxNumber);
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [withdrawalNotes, setWithdrawalNotes] = useState("");
@@ -365,27 +368,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   const selectedCoinBox = boxes.find((box) => box.boxNumber === selectedBox);
   const selectedHouse = houses.find((house) => house.id === selectedCoinBox?.houseId || house.boxNumber === selectedBox);
 
-  async function addHouse() {
-    if (!newHouseName.trim()) return;
-    setDataError("");
-    const response = await fetch("/api/houses", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: newHouseName.trim(),
-        phone: "081234567890",
-        address: "Alamat baru Pakiskembar",
-        rtRw: "RT01/RW02"
-      })
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      setDataError(payload.error ?? "Gagal menambah rumah.");
-      return;
-    }
-    setHouses((items) => [payload.house, ...items]);
-    setNewHouseName("");
-  }
+
 
   async function submitWithdrawal() {
     const amount = Number(withdrawalAmount);
@@ -530,17 +513,26 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
             </div>
           ) : null}
           {initialPage === "dashboard" && (account.role === "PETUGAS" ? <PetugasDashboard /> : <DashboardAnalytics />)}
-          {initialPage === "houses" && (
+          {initialPage === "houses" && !activeView && (
             <HousesView
               houses={filteredHouses}
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               rtFilter={rtFilter}
               setRtFilter={setRtFilter}
-              newHouseName={newHouseName}
-              setNewHouseName={setNewHouseName}
-              addHouse={addHouse}
+              onAddHouse={() => setActiveView("add-house")}
+              onSelectHouse={(id: number) => { setSelectedHouseId(id); setActiveView("house-detail"); }}
             />
+          )}
+          {initialPage === "houses" && activeView === "add-house" && (
+            <div className="p-4">
+              <HouseFormWrapper onBack={() => setActiveView(null)} onCreated={(id) => { setSelectedHouseId(id); setActiveView("house-detail"); }} />
+            </div>
+          )}
+          {initialPage === "houses" && activeView === "house-detail" && selectedHouseId && (
+            <div className="p-4">
+              <HouseDetailWrapper houseId={selectedHouseId} onBack={() => setActiveView(null)} />
+            </div>
           )}
           {initialPage === "coin-boxes" && <BoxesView boxes={boxes} houses={houses} />}
           {initialPage === "koin" && <KoinView />}
@@ -573,6 +565,28 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
       </section>
     </main>
   );
+}
+
+
+function HouseFormWrapper({ onBack, onCreated }: { onBack: () => void; onCreated?: (houseId: number) => void }) {
+  return (
+    <div>
+      <div className="mb-6 flex items-center gap-4">
+        <button onClick={onBack} className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-slate-200 text-slate-500 hover:bg-slate-50">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+        </button>
+        <div>
+          <h2 className="text-lg font-semibold text-ink">Tambah Rumah Baru</h2>
+          <p className="text-sm text-slate-500">Isi data rumah donatur secara lengkap</p>
+        </div>
+      </div>
+      <HouseForm onSuccess={(house) => { if (house?.id) onCreated?.(house.id); else onBack(); }} />
+    </div>
+  );
+}
+
+function HouseDetailWrapper({ houseId, onBack }: { houseId: number; onBack: () => void }) {
+  return <HouseDetail houseId={houseId} onBack={onBack} />;
 }
 
 function pageTitle(page: string) {
@@ -676,50 +690,45 @@ function HousesView(props: {
   setSearchTerm: (value: string) => void;
   rtFilter: string;
   setRtFilter: (value: string) => void;
-  newHouseName: string;
-  setNewHouseName: (value: string) => void;
-  addHouse: () => void;
+  onAddHouse: () => void;
+  onSelectHouse: (id: number) => void;
 }) {
   return (
     <div className="grid gap-6">
-      <Panel title="Tambah rumah">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-          <input
-            className="h-11 rounded-[8px] border border-slate-200 px-3"
-            placeholder="Nama kepala keluarga"
-            value={props.newHouseName}
-            onChange={(event) => props.setNewHouseName(event.target.value)}
-          />
-          <button className="h-11 rounded-[8px] bg-brand-600 px-4 font-semibold text-white" onClick={props.addHouse}>
-            Tambah
-          </button>
-        </div>
-      </Panel>
-      <Panel title="Data rumah donatur">
-        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_180px]">
-          <label className="relative">
-            <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-            <input
-              className="h-11 w-full rounded-[8px] border border-slate-200 pl-10 pr-3"
-              placeholder="Cari nama, alamat, HP, atau nomor kaleng"
-              value={props.searchTerm}
-              onChange={(event) => props.setSearchTerm(event.target.value)}
-            />
-          </label>
-          <select
-            className="h-11 rounded-[8px] border border-slate-200 px-3"
-            value={props.rtFilter}
-            onChange={(event) => props.setRtFilter(event.target.value)}
+      <Panel title="Rumah Donatur">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex flex-1 gap-3">
+            <label className="relative flex-1">
+              <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+              <input
+                className="h-11 w-full rounded-[8px] border border-slate-200 pl-10 pr-3"
+                placeholder="Cari nama, alamat, HP, atau nomor kaleng"
+                value={props.searchTerm}
+                onChange={(event) => props.setSearchTerm(event.target.value)}
+              />
+            </label>
+            <select
+              className="h-11 rounded-[8px] border border-slate-200 px-3"
+              value={props.rtFilter}
+              onChange={(event) => props.setRtFilter(event.target.value)}
+            >
+              {["Semua", "RT01/RW02", "RT02/RW02", "RT03/RW01", "RT01/RW01"].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={props.onAddHouse}
+            className="flex h-11 items-center gap-2 rounded-[8px] bg-brand-600 px-4 font-semibold text-white hover:bg-brand-700"
           >
-            {["Semua", "RT01/RW02", "RT02/RW02", "RT03/RW01", "RT01/RW01"].map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Tambah Rumah
+          </button>
         </div>
         <DataTable
           headers={["Nama", "RT/RW", "HP", "Kaleng", "Status"]}
           rows={props.houses.map((item) => [
-            item.name,
+            <button key={item.id} onClick={() => props.onSelectHouse(item.id)} className="text-left text-brand-700 hover:underline font-medium">{item.name}</button>,
             item.rtRw,
             item.phone,
             item.boxNumber,
