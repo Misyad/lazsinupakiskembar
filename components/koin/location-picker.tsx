@@ -76,7 +76,6 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
     if (mapInstanceRef.current) return;
 
     let map: any = null;
-    let observer: ResizeObserver | null = null;
 
     async function initMap() {
       const L = await import("leaflet");
