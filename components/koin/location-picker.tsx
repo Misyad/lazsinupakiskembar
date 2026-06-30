@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { SearchAddress } from "./search-address";
 import { useCurrentLocation } from "./use-current-location";
 import { LocateFixed, MapPin, WifiOff } from "lucide-react";
-import { saveTile, preCacheArea } from "@/lib/tile-cache";
+import { saveTile } from "@/lib/tile-cache";
 
 interface Props {
   latitude?: number | null;
@@ -17,11 +17,15 @@ interface Props {
 const DEF_LAT = -7.5;
 const DEF_LNG = 112.5;
 
+// Debug logger — active only on localhost or with ?debug=map in URL
+const debug = typeof window !== "undefined" && (location.hostname === "localhost" || location.search.includes("debug=map"))
+  ? (...args: unknown[]) => console.debug("[Map]", ...args)
+  : () => {};
+
 export function LocationPicker({ latitude, longitude, onChange, defaultLat, defaultLng }: Props) {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const prevCoordRef = useRef({ lat: 0, lng: 0 });
 
   const [ready, setReady] = useState(false);
@@ -31,54 +35,72 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
   const [lng, setLng] = useState(longitude ?? defaultLng ?? DEF_LNG);
   const { location: gps, loading: gpsLoading, error: gpsError, request: gpsRequest } = useCurrentLocation();
 
-  // Invalidate map size — called on every container resize
-  const invalidateSize = useCallback(() => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.invalidateSize();
+  // ── Resize handling ────────────────────────────────────────────
+  const invalidate = useCallback(() => {
+    if (mapRef.current) {
+      const size = mapRef.current.getSize();
+      debug("invalidateSize — current map size:", size.x, "x", size.y);
+      mapRef.current.invalidateSize();
     }
   }, []);
 
-  // Observe container size changes and invalidate map
+  // ResizeObserver: keep map synced when container changes size
   useEffect(() => {
-    const container = mapContainerRef.current;
-    if (!container) return;
+    const el = containerRef.current;
+    if (!el) return;
+    if (el.clientWidth === 0 || el.clientHeight === 0) {
+      debug("container has zero size — skipping ResizeObserver");
+      return;
+    }
 
-    // Wait until container has dimensions before initializing map
-    if (container.clientWidth === 0 || container.clientHeight === 0) return;
-
-    // Create ResizeObserver to keep map in sync with container
     const ro = new ResizeObserver(() => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
-      }
+      debug("ResizeObserver fired — container:", el.clientWidth, "x", el.clientHeight);
+      invalidate();
     });
-    ro.observe(container);
-    resizeObserverRef.current = ro;
+    ro.observe(el);
 
-    return () => {
-      ro.disconnect();
-      resizeObserverRef.current = null;
-    };
-  }, []);
+    // Also observe any parent that may collapse/expand (sidebar, etc.)
+    ro.observe(document.getElementById("__next") || document.body);
 
-  // Watch window resize for browser chrome/orientation changes
+    return () => ro.disconnect();
+  }, [invalidate]);
+
+  // Window resize (orientation change etc.)
   useEffect(() => {
-    window.addEventListener("resize", invalidateSize);
-    return () => window.removeEventListener("resize", invalidateSize);
-  }, [invalidateSize]);
+    window.addEventListener("resize", invalidate);
+    return () => window.removeEventListener("resize", invalidate);
+  }, [invalidate]);
 
-  // Initialize Leaflet map once (client-only)
+  // ── Map initialisation (once) ──────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const container = mapContainerRef.current;
-    if (!container || mapInstanceRef.current) return;
+    const el = containerRef.current;
+    if (!el || mapRef.current) return;
+
+    // Guard: container must have size before initialising
+    if (el.clientWidth === 0 || el.clientHeight === 0) {
+      debug("container still has zero size — deferring map init");
+      return;
+    }
+
+    debug("container is", el.clientWidth, "x", el.clientHeight, "— starting map init");
 
     let map: any = null;
+    let destroyed = false;
 
-    async function initMap(container: HTMLDivElement) {
+    (async () => {
       const L = await import("leaflet");
 
-      // Fix default marker icon paths
+      // ── Log tile loading ──────────────────────────────────────
+      // Monkey-patch L.TileLayer._loadTile to trace failures
+      const origLoad = (L.TileLayer.prototype as any)._loadTile;
+      (L.TileLayer.prototype as any)._loadTile = function (tile: any, tilePoint: any) {
+        tile.onerror = () => debug("tile error:", tile.src);
+        tile.onload = () => debug("tile loaded:", tile.src.substring(0, 60));
+        return origLoad.call(this, tile, tilePoint);
+      };
+
+      // ── Fix default icon ──────────────────────────────────────
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -86,172 +108,150 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      map = L.map(container, {
+      map = L.map(el, {
         center: [lat, lng],
         zoom: 15,
         zoomControl: true,
-        zoomSnap: 1,
-        zoomDelta: 1,
         attributionControl: true,
       });
 
-      // ESRI Hybrid: Satellite + Reference overlay
-      L.tileLayer(
+      debug("L.map created — size before tiles:", map.getSize().x, "x", map.getSize().y);
+
+      // ── ESRI Satellite (base) ──────────────────────────────────
+      const sat = L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "&copy; Esri", maxZoom: 19 }
-      ).addTo(map);
+        {
+          attribution: "&copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+          maxZoom: 19,
+          crossOrigin: "anonymous",
+        }
+      );
+      map.addLayer(sat);
+      debug("satellite layer added");
 
-      L.tileLayer(
+      // ── ESRI Reference (overlay) ───────────────────────────────
+      const ref = L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "&copy; Esri", maxZoom: 19 }
-      ).addTo(map);
+        {
+          attribution: "&copy; Esri",
+          maxZoom: 19,
+          crossOrigin: "anonymous",
+        }
+      );
+      map.addLayer(ref);
+      debug("reference layer added");
 
-      // Marker
+      // ── Marker ─────────────────────────────────────────────────
       const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
       marker.on("dragend", () => {
-        const pos = marker.getLatLng();
-        setLat(pos.lat);
-        setLng(pos.lng);
-        onChange(pos.lat, pos.lng);
+        const p = marker.getLatLng();
+        setLat(p.lat);
+        setLng(p.lng);
+        onChange(p.lat, p.lng);
       });
-
-      map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
+      map.on("click", (e: any) => {
         marker.setLatLng(e.latlng);
         setLat(e.latlng.lat);
         setLng(e.latlng.lng);
         onChange(e.latlng.lat, e.latlng.lng);
       });
 
-      // Cache tiles for offline
+      // ── Offline caching — uses fetch to avoid canvas taint ────
       map.on("tileload", (e: any) => {
-        if (e.tile?.src?.startsWith("http") && e.tile.complete && e.tile.naturalWidth > 0) {
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = e.tile.naturalWidth || 256;
-            canvas.height = e.tile.naturalHeight || 256;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.drawImage(e.tile, 0, 0);
-              canvas.toBlob((blob) => {
-                if (blob) saveTile(e.tile.src, blob);
-              }, "image/png");
-            }
-          } catch { /* ignore */ }
-        }
+        if (!e.tile?.src?.startsWith("http")) return;
+        // Fetch via XHR instead of canvas (avoids CORS taint on Safari)
+        fetch(e.tile.src, { mode: "cors" })
+          .then((r) => (r.ok ? r.blob() : null))
+          .then((blob) => { if (blob) saveTile(e.tile.src, blob); })
+          .catch(() => {});
       });
 
-      mapInstanceRef.current = map;
+      // ── Store refs ────────────────────────────────────────────
+      mapRef.current = map;
       markerRef.current = marker;
       setReady(true);
 
-      // Invalidate after mount to ensure correct sizing
-      map.invalidateSize();
+      debug("map init complete — final size:", map.getSize().x, "x", map.getSize().y);
 
-      // Re-check on next frame for layout shifts (no arbitrary delay)
+      // Double-check on next frame (catches late layout shifts)
       requestAnimationFrame(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
+        if (destroyed) return;
+        debug("rAF invalidateSize — size:", map.getSize().x, "x", map.getSize().y);
+        map.invalidateSize();
       });
-    }
-
-    initMap(container);
+    })();
 
     return () => {
+      destroyed = true;
       if (map) {
+        debug("map cleanup");
         map.remove();
-        mapInstanceRef.current = null;
+        mapRef.current = null;
         markerRef.current = null;
       }
     };
-    // Run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update marker when lat/lng change externally (e.g., search or GPS)
+  // ── External coordinate sync ───────────────────────────────────
   useEffect(() => {
     if (!markerRef.current || !ready) return;
-    const newLat = lat;
-    const newLng = lng;
-    const prev = prevCoordRef.current;
-    const moved = Math.abs(newLat - prev.lat) > 0.0005 || Math.abs(newLng - prev.lng) > 0.0005;
-
-    markerRef.current.setLatLng([newLat, newLng]);
-    if (moved && mapInstanceRef.current) {
-      mapInstanceRef.current.setView([newLat, newLng], mapInstanceRef.current.getZoom());
-    }
-    prevCoordRef.current = { lat: newLat, lng: newLng };
+    const p = prevCoordRef.current;
+    const moved = Math.abs(lat - p.lat) > 0.0005 || Math.abs(lng - p.lng) > 0.0005;
+    markerRef.current.setLatLng([lat, lng]);
+    if (moved && mapRef.current) mapRef.current.setView([lat, lng], mapRef.current.getZoom());
+    prevCoordRef.current = { lat, lng };
   }, [latitude, longitude, ready, lat, lng]);
 
-  // Move to GPS location
+  // ── GPS ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (gps && ready && markerRef.current) {
-      markerRef.current.setLatLng([gps.latitude, gps.longitude]);
-      setLat(gps.latitude);
-      setLng(gps.longitude);
-      onChange(gps.latitude, gps.longitude);
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([gps.latitude, gps.longitude], 17);
-      }
-    }
+    if (!gps || !ready || !markerRef.current) return;
+    markerRef.current.setLatLng([gps.latitude, gps.longitude]);
+    setLat(gps.latitude);
+    setLng(gps.longitude);
+    onChange(gps.latitude, gps.longitude);
+    if (mapRef.current) mapRef.current.setView([gps.latitude, gps.longitude], 17);
   }, [gps, ready, onChange]);
 
+  // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
-      <SearchAddress onSelect={(lat, lng, label) => {
-        setLat(lat);
-        setLng(lng);
-        onChange(lat, lng);
-        if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-        if (mapInstanceRef.current) mapInstanceRef.current.setView([lat, lng], 17);
-      }} />
+      <SearchAddress
+        onSelect={(lat, lng) => {
+          setLat(lat); setLng(lng); onChange(lat, lng);
+          markerRef.current?.setLatLng([lat, lng]);
+          mapRef.current?.setView([lat, lng], 17);
+        }}
+      />
 
       <div className="flex items-center gap-2 text-sm text-slate-600">
         <MapPin size={16} />
-        <span>
-          {lat.toFixed(6)}, {lng.toFixed(6)}
-          {latitude && longitude ? " (tersimpan)" : ""}
-        </span>
+        <span>{lat.toFixed(6)}, {lng.toFixed(6)}{latitude && longitude ? " (tersimpan)" : ""}</span>
       </div>
 
-      {/* Map container with explicit size and containment */}
+      {/* Map container — explicit dimensions, no contain:strict (breaks Safari) */}
       <div
-        ref={mapContainerRef}
-        className="h-72 w-full rounded-[8px] border border-slate-200 overflow-hidden relative"
-        style={{ contain: "strict" }}
+        ref={containerRef}
+        className="h-72 w-full rounded-[8px] border border-slate-200 overflow-hidden"
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={gpsRequest}
-          disabled={gpsLoading}
-          className="flex items-center gap-2 rounded-[8px] bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-        >
+        <button type="button" onClick={gpsRequest} disabled={gpsLoading}
+          className="flex items-center gap-2 rounded-[8px] bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
           <LocateFixed size={16} />
           {gpsLoading ? "Mendeteksi..." : "Gunakan Lokasi Saya"}
         </button>
         <div className="flex items-center gap-2">
-          {cacheStatus && (
-            <span className="text-xs text-slate-500">{cacheStatus}</span>
-          )}
-          <button
-            type="button"
-            onClick={async () => {
-              setCaching(true);
-              setCacheStatus("Meng-cache peta...");
-              const count = await preCacheArea(lat, lng, 13, 19);
-              setCacheStatus(`✅ ${count} tile tersimpan untuk offline`);
-              setCaching(false);
-            }}
-            disabled={caching}
-            className="flex items-center gap-2 rounded-[8px] border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {caching ? (
-              <span className="animate-spin">⏳</span>
-            ) : (
-              <WifiOff size={14} />
-            )}
+          {cacheStatus && <span className="text-xs text-slate-500">{cacheStatus}</span>}
+          <button type="button" onClick={async () => {
+            setCaching(true); setCacheStatus("Meng-cache peta...");
+            const { preCacheArea } = await import("@/lib/tile-cache");
+            const count = await preCacheArea(lat, lng, 13, 19);
+            setCacheStatus(`✅ ${count} tile tersimpan untuk offline`);
+            setCaching(false);
+          }} disabled={caching}
+            className="flex items-center gap-2 rounded-[8px] border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+            {caching ? <span className="animate-spin">⏳</span> : <WifiOff size={14} />}
             {caching ? "Menyimpan..." : "Simpan Peta Offline"}
           </button>
         </div>
