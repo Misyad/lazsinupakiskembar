@@ -47,7 +47,36 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
 
       if (!mapRef.current || mapInstance.current) return;
 
-      const map = L.map(mapRef.current, {
+      // Wait until container has actual dimensions before init
+      const container = mapRef.current;
+      const checkReady = () => {
+        if (container.clientWidth > 0 && container.clientHeight > 0) {
+          return true;
+        }
+        return false;
+      };
+
+      // ResizeObserver to detect when container gets size
+      const resizeObserver = new ResizeObserver(() => {
+        if (mapInstance.current) {
+          mapInstance.current.invalidateSize();
+        }
+      });
+      resizeObserver.observe(container);
+
+      // Wait for container to have size (mobile layout delay)
+      if (!checkReady()) {
+        await new Promise<void>((resolve) => {
+          const check = setInterval(() => {
+            if (checkReady() || !container.isConnected) {
+              clearInterval(check);
+              resolve();
+            }
+          }, 50);
+        });
+      }
+
+      const map = L.map(container, {
         center: [lat, lng],
         zoom: 15,
         zoomControl: true,
@@ -56,8 +85,10 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         wheelPxPerZoomLevel: 60,
       });
 
-      // Invalidate size after initialization to fix mobile container issues
-      setTimeout(() => map.invalidateSize(), 200);
+      // Invalidate after render + on each resize
+      const doInvalidate = () => map.invalidateSize();
+      setTimeout(doInvalidate, 300);
+      window.addEventListener("resize", doInvalidate);
 
       // ESRI Hybrid: Satellite + Reference (jalan, batas)
       const satellite = L.tileLayer(
