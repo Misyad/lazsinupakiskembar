@@ -5,6 +5,7 @@ import { SearchAddress } from "./search-address";
 import { useCurrentLocation } from "./use-current-location";
 import { LocateFixed, MapPin, WifiOff } from "lucide-react";
 import { saveTile } from "@/lib/tile-cache";
+import { ESRI_MAX_ZOOM } from "@/lib/tile-cache";
 
 interface Props {
   latitude?: number | null;
@@ -23,6 +24,12 @@ const debug = typeof window !== "undefined" && (location.hostname === "localhost
   : () => {};
 
 export function LocationPicker({ latitude, longitude, onChange, defaultLat, defaultLng }: Props) {
+  // ── Debug: disable cache with ?nocache ──────────────────────────
+  // Set to true to bypass IndexedDB entirely for comparison
+  const CACHE_ENABLED = typeof window !== "undefined"
+    ? !location.search.includes("nocache")
+    : true;
+
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -122,24 +129,24 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
           attribution: "&copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-          maxZoom: 19,
+          maxZoom: ESRI_MAX_ZOOM,
           crossOrigin: "anonymous",
         }
       );
       map.addLayer(sat);
-      debug("satellite layer added");
+      debug("satellite layer added — maxZoom:", ESRI_MAX_ZOOM);
 
       // ── ESRI Reference (overlay) ───────────────────────────────
       const ref = L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         {
           attribution: "&copy; Esri",
-          maxZoom: 19,
+          maxZoom: ESRI_MAX_ZOOM,
           crossOrigin: "anonymous",
         }
       );
       map.addLayer(ref);
-      debug("reference layer added");
+      debug("reference layer added — maxZoom:", ESRI_MAX_ZOOM);
 
       // ── Marker ─────────────────────────────────────────────────
       const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
@@ -156,14 +163,49 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
         onChange(e.latlng.lat, e.latlng.lng);
       });
 
-      // ── Offline caching — uses fetch to avoid canvas taint ────
+      // ── Offline caching + detailed tile logging ────────────────
+      // Each log line: REQUEST → CACHE HIT/MISS → FETCH → STATUS → SIZE → STORED
+      map.on("tileloadstart", (e: any) => {
+        debug("TILE REQUEST:", e.tile?.src?.substring(0, 80));
+      });
+
       map.on("tileload", (e: any) => {
-        if (!e.tile?.src?.startsWith("http")) return;
-        // Fetch via XHR instead of canvas (avoids CORS taint on Safari)
-        fetch(e.tile.src, { mode: "cors" })
-          .then((r) => (r.ok ? r.blob() : null))
-          .then((blob) => { if (blob) saveTile(e.tile.src, blob); })
-          .catch(() => {});
+        const url = e.tile?.src;
+        if (!url?.startsWith("http")) return;
+
+        const status = e.tile?.complete ? "loaded" : "?";
+        const w = e.tile?.naturalWidth || 0;
+        debug(`TILE LOADED — ${status} ${w}px url=${url.substring(0, 60)}`);
+
+        if (!CACHE_ENABLED) {
+          debug("TILE CACHE DISABLED — skipping save");
+          return;
+        }
+
+        // Fetch via XHR (not canvas — avoids CORS taint on Safari)
+        fetch(url, { mode: "cors" })
+          .then((r) => {
+            debug(`TILE FETCH — status=${r.status} type=${r.headers.get("content-type")} size=${r.headers.get("content-length") || "?"} url=${url.substring(0, 60)}`);
+            if (!r.ok) {
+              debug("TILE FETCH FAILED — not caching");
+              return null;
+            }
+            return r.blob();
+          })
+          .then((blob) => {
+            if (!blob) return;
+            debug(`TILE CACHE SAVE — blob: type=${blob.type} size=${blob.size} url=${url.substring(0, 60)}`);
+            saveTile(url, blob, "tileload");
+          })
+          .catch((err) => {
+            debug("TILE FETCH ERROR:", err, "url=", url.substring(0, 60));
+          });
+      });
+
+      // Log tile errors (404, timeout, CORS, etc.)
+      map.on("tileerror", (e: any) => {
+        const url = e.tile?.src || e.url || "?";
+        debug("TILE ERROR:", e.error?.message || e.error || "unknown", "url=", url.substring(0, 80));
       });
 
       // ── Store refs ────────────────────────────────────────────
