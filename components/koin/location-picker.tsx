@@ -44,13 +44,13 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
 
       if (!mapRef.current || mapInstance.current) return;
 
-      // Small delay to ensure container has dimensions (fixes mobile layout issues)
-      await new Promise((r) => setTimeout(r, 100));
-
       const map = L.map(mapRef.current, {
         center: [lat, lng],
         zoom: 15,
         zoomControl: true,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
+        wheelPxPerZoomLevel: 60,
       });
 
       // Invalidate size after initialization to fix mobile container issues
@@ -92,12 +92,19 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
   }, []);
 
   // Update marker position when lat/lng change externally
+  const prevCoord = useRef({ lat: 0, lng: 0 });
   useEffect(() => {
     if (!markerRef.current || !ready) return;
-    markerRef.current.setLatLng([lat, lng]);
-    if (mapInstance.current) {
-      mapInstance.current.setView([lat, lng], mapInstance.current.getZoom());
+    const newLat = lat;
+    const newLng = lng;
+    // Only re-center if coordinates changed significantly (>50m)
+    const prev = prevCoord.current;
+    const moved = Math.abs(newLat - prev.lat) > 0.001 || Math.abs(newLng - prev.lng) > 0.001;
+    markerRef.current.setLatLng([newLat, newLng]);
+    if (moved && mapInstance.current) {
+      mapInstance.current.setView([newLat, newLng], mapInstance.current.getZoom());
     }
+    prevCoord.current = { lat: newLat, lng: newLng };
   }, [latitude, longitude]);
 
   // Move to GPS location
