@@ -71,13 +71,11 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
   useEffect(() => {
     if (typeof window === "undefined") return;
     const container = mapContainerRef.current;
-    if (!container) return;
-    // Don't init twice
-    if (mapInstanceRef.current) return;
+    if (!container || mapInstanceRef.current) return;
 
     let map: any = null;
 
-    async function initMap() {
+    async function initMap(container: HTMLDivElement) {
       const L = await import("leaflet");
 
       // Fix default marker icon paths
@@ -157,7 +155,7 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
       });
     }
 
-    initMap();
+    initMap(container);
 
     return () => {
       if (map) {
