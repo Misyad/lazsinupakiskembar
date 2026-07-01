@@ -87,7 +87,7 @@ function CoordinateSyncer({
 }
 
 // ── Main component ───────────────────────────────────────────────
-export function LocationPicker({ latitude, longitude, onChange, onReverseGeocode, defaultLat, defaultLng }: Props) {
+export function LocationPicker({ latitude, longitude, onChange, onReverseGeocode, onGeoStatus, defaultLat, defaultLng }: Props) {
   const [lat, setLat] = useState(latitude ?? defaultLat ?? DEF_LAT);
   const [lng, setLng] = useState(longitude ?? defaultLng ?? DEF_LNG);
   const [gpsTrigger, setGpsTrigger] = useState(false);
