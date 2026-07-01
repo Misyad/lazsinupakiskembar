@@ -18,6 +18,14 @@ export function HouseForm({ onSuccess }: Props) {
     photoFront: "", photoBox: "", photoOwner: "",
   });
   const [error, setError] = useState("");
+  const [referenceAddress, setReferenceAddress] = useState<{
+    address: string;
+    hamlet: string | null;
+    village: string | null;
+    district: string | null;
+    postcode: string | null;
+  } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<"idle" | "ok" | "error">("idle");
 
   const update = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -124,6 +132,34 @@ export function HouseForm({ onSuccess }: Props) {
         </div>
       </Section>
 
+      {/* Reference Address Panel */}
+      {referenceAddress && (
+        <Section title="📍 Alamat Referensi dari Peta">
+          <div className="text-sm text-slate-600 space-y-1 mb-3">
+            <p>{referenceAddress.address}</p>
+            {referenceAddress.hamlet && <p className="text-slate-500">{referenceAddress.hamlet}</p>}
+            {referenceAddress.postcode && <p className="text-slate-500">Kode Pos: {referenceAddress.postcode}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              update("address", referenceAddress.address);
+              if (referenceAddress.hamlet && !form.hamlet.trim()) update("hamlet", referenceAddress.hamlet);
+              if (referenceAddress.postcode && !form.postalCode.trim()) update("postalCode", referenceAddress.postcode);
+            }}
+            className="flex items-center gap-2 rounded-[8px] bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Gunakan Sebagai Alamat
+          </button>
+        </Section>
+      )}
+
+      {geoStatus === "error" && (
+        <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          ⚠ Alamat referensi tidak ditemukan. Silakan isi alamat secara manual.
+        </div>
+      )}
+
       {/* Section 3: Lokasi */}
       <Section title="Lokasi *">
         <p className="text-xs text-slate-500 mb-3">Klik peta, geser marker, atau cari alamat untuk menentukan lokasi</p>
@@ -132,10 +168,10 @@ export function HouseForm({ onSuccess }: Props) {
           longitude={form.longitude}
           onChange={(lat, lng) => { update("latitude", lat); update("longitude", lng); }}
           onReverseGeocode={(result) => {
-            if (!form.address.trim()) update("address", result.address);
-            if (!form.hamlet.trim()) update("hamlet", result.hamlet || result.village || "");
-            if (!form.postalCode.trim() && result.postcode) update("postalCode", result.postcode);
+            setReferenceAddress(result);
+            setGeoStatus("ok");
           }}
+          onGeoStatus={(status) => setGeoStatus(status)}
         />
       </Section>
 

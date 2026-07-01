@@ -26,6 +26,7 @@ interface Props {
   longitude?: number | null;
   onChange: (lat: number, lng: number) => void;
   onReverseGeocode?: (result: ReverseGeoResult) => void;
+  onGeoStatus?: (status: "idle" | "ok" | "error") => void;
   defaultLat?: number;
   defaultLng?: number;
 }
@@ -116,22 +117,26 @@ export function LocationPicker({ latitude, longitude, onChange, onReverseGeocode
       debounceRef.current = setTimeout(async () => {
         setGeocoding(true);
         setGeoStatus("idle");
+        onGeoStatus?.("idle");
         try {
           const result = await reverseGeocode(clat, clng);
           if (result) {
             onReverseGeocode(result);
             setGeoStatus("ok");
+            onGeoStatus?.("ok");
           } else {
             setGeoStatus("error");
+            onGeoStatus?.("error");
           }
         } catch {
           setGeoStatus("error");
+          onGeoStatus?.("error");
         } finally {
           setGeocoding(false);
         }
       }, GEOCODE_DEBOUNCE_MS);
     },
-    [onReverseGeocode]
+    [onReverseGeocode, onGeoStatus]
   );
 
   const handleMove = useCallback(
