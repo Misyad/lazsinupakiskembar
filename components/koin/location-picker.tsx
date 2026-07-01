@@ -6,7 +6,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { SearchAddress } from "./search-address";
 import { useCurrentLocation } from "./use-current-location";
-import { LocateFixed, MapPin, WifiOff } from "lucide-react";
+import { LocateFixed, MapPin, WifiOff, Loader2 } from "lucide-react";
+import { reverseGeocode, type ReverseGeoResult } from "@/lib/reverse-geocode";
 
 // ── One-time icon fix ────────────────────────────────────────────
 const defaultIcon = L.icon({
@@ -24,12 +25,14 @@ interface Props {
   latitude?: number | null;
   longitude?: number | null;
   onChange: (lat: number, lng: number) => void;
+  onReverseGeocode?: (result: ReverseGeoResult) => void;
   defaultLat?: number;
   defaultLng?: number;
 }
 
 const DEF_LAT = -7.5;
 const DEF_LNG = 112.5;
+const GEOCODE_DEBOUNCE_MS = 600;
 
 // ── Component: reacts to map events ──────────────────────────────
 function MapController({
@@ -43,19 +46,18 @@ function MapController({
 }) {
   const map = useMap();
 
-  // Click to set marker
   useMapEvents({
     click(e) {
       onMove(e.latlng.lat, e.latlng.lng);
     },
   });
 
-  // GPS: fly to location
   useEffect(() => {
     if (gps && gpsActive) {
       map.flyTo([gps.latitude, gps.longitude], 17);
+      onMove(gps.latitude, gps.longitude);
     }
-  }, [gps, gpsActive, map]);
+  }, [gps, gpsActive, map, onMove]);
 
   return null;
 }
@@ -64,11 +66,9 @@ function MapController({
 function CoordinateSyncer({
   lat,
   lng,
-  onChange,
 }: {
   lat: number;
   lng: number;
-  onChange: (lat: number, lng: number) => void;
 }) {
   const map = useMap();
   const prevRef = useRef({ lat: 0, lng: 0 });
@@ -86,33 +86,70 @@ function CoordinateSyncer({
 }
 
 // ── Main component ───────────────────────────────────────────────
-export function LocationPicker({ latitude, longitude, onChange, defaultLat, defaultLng }: Props) {
+export function LocationPicker({ latitude, longitude, onChange, onReverseGeocode, defaultLat, defaultLng }: Props) {
   const [lat, setLat] = useState(latitude ?? defaultLat ?? DEF_LAT);
   const [lng, setLng] = useState(longitude ?? defaultLng ?? DEF_LNG);
   const [gpsTrigger, setGpsTrigger] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geoStatus, setGeoStatus] = useState<"idle" | "ok" | "error">("idle");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { location: gps, loading: gpsLoading, error: gpsError, request: gpsRequest } = useCurrentLocation();
 
   const [caching, setCaching] = useState(false);
   const [cacheStatus, setCacheStatus] = useState("");
 
-  // When GPS responds, trigger flyTo
-  useEffect(() => {
-    if (gps && gpsTrigger) {
-      setLat(gps.latitude);
-      setLng(gps.longitude);
-      onChange(gps.latitude, gps.longitude);
-      setGpsTrigger(false);
-    }
-  }, [gps, gpsTrigger, onChange]);
+  const prevCoordGeo = useRef({ lat: 0, lng: 0 });
+
+  // ── Reverse geocode with debounce ─────────────────────────────
+  const triggerReverseGeocode = useCallback(
+    (clat: number, clng: number) => {
+      if (!onReverseGeocode) return;
+
+      // Skip if coordinates barely moved
+      const prev = prevCoordGeo.current;
+      if (Math.abs(clat - prev.lat) < 0.00005 && Math.abs(clng - prev.lng) < 0.00005) return;
+      prevCoordGeo.current = { lat: clat, lng: clng };
+
+      // Debounce
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(async () => {
+        setGeocoding(true);
+        setGeoStatus("idle");
+        try {
+          const result = await reverseGeocode(clat, clng);
+          if (result) {
+            onReverseGeocode(result);
+            setGeoStatus("ok");
+          } else {
+            setGeoStatus("error");
+          }
+        } catch {
+          setGeoStatus("error");
+        } finally {
+          setGeocoding(false);
+        }
+      }, GEOCODE_DEBOUNCE_MS);
+    },
+    [onReverseGeocode]
+  );
 
   const handleMove = useCallback(
     (newLat: number, newLng: number) => {
       setLat(newLat);
       setLng(newLng);
       onChange(newLat, newLng);
+      triggerReverseGeocode(newLat, newLng);
     },
-    [onChange]
+    [onChange, triggerReverseGeocode]
   );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -128,9 +165,20 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
           {lat.toFixed(6)}, {lng.toFixed(6)}
           {latitude && longitude ? " (tersimpan)" : ""}
         </span>
+        {geocoding && (
+          <span className="flex items-center gap-1 text-xs text-amber-600">
+            <Loader2 size={12} className="animate-spin" /> Mencari alamat...
+          </span>
+        )}
+        {!geocoding && geoStatus === "ok" && (
+          <span className="text-xs text-green-600">✅ Alamat ditemukan</span>
+        )}
+        {!geocoding && geoStatus === "error" && (
+          <span className="text-xs text-amber-600">⚠ Isi alamat manual</span>
+        )}
       </div>
 
-      {/* Map — identical pattern to /debug-map */}
+      {/* Map */}
       <div className="h-72 w-full rounded-[8px] border border-slate-200 overflow-hidden">
         <MapContainer
           center={[lat, lng]}
@@ -163,7 +211,7 @@ export function LocationPicker({ latitude, longitude, onChange, defaultLat, defa
           />
 
           <MapController onMove={handleMove} gps={gps} gpsActive={gpsTrigger} />
-          <CoordinateSyncer lat={lat} lng={lng} onChange={handleMove} />
+          <CoordinateSyncer lat={lat} lng={lng} />
         </MapContainer>
       </div>
 

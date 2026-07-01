@@ -131,6 +131,11 @@ export function HouseForm({ onSuccess }: Props) {
           latitude={form.latitude}
           longitude={form.longitude}
           onChange={(lat, lng) => { update("latitude", lat); update("longitude", lng); }}
+          onReverseGeocode={(result) => {
+            if (!form.address.trim()) update("address", result.address);
+            if (!form.hamlet.trim()) update("hamlet", result.hamlet || result.village || "");
+            if (!form.postalCode.trim() && result.postcode) update("postalCode", result.postcode);
+          }}
         />
       </Section>
 
