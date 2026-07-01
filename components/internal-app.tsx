@@ -423,7 +423,7 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
   return (
     <main className="min-h-screen lg:grid lg:grid-cols-[280px_1fr]">
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-[280px] border-r border-slate-200 bg-white p-4 transition lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-[500] w-[280px] border-r border-slate-200 bg-white p-4 transition lg:static lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -472,6 +472,14 @@ export function InternalApp({ initialPage, initialUser }: { initialPage: Interna
           </button>
         </div>
       </aside>
+
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-[400] bg-black/30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       <section className="min-w-0">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/92 px-4 py-3 backdrop-blur lg:px-8">
