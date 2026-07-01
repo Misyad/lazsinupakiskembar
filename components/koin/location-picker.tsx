@@ -38,7 +38,7 @@ function MapController({
   gpsActive,
 }: {
   onMove: (lat: number, lng: number) => void;
-  gps: GeolocationCoordinates | null;
+  gps: { latitude: number; longitude: number } | null;
   gpsActive: boolean;
 }) {
   const map = useMap();
